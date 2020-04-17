@@ -10,7 +10,7 @@
   
   <title>
     
-      在Hexo博客上使用七牛云图床 | Fane&#39;Blog
+      Go并发编程（一） 并发编程基础 | Fane&#39;Blog
     
   </title>
   <link href="//cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css" rel="stylesheet">
@@ -155,8 +155,8 @@
 </header>
 
     <div id="article-banner">
-  <h2>在Hexo博客上使用七牛云图床</h2>
-  <p class="post-date">2020-04-15</p>
+  <h2>Go并发编程（一） 并发编程基础</h2>
+  <p class="post-date">2020-04-16</p>
   <div class="arrow-down">
     <a href="javascript:;"></a>
   </div>
@@ -164,43 +164,46 @@
 <main class="app-body flex-box">
   <!-- Article START -->
   <article class="post-article">
-    <section class="markdown-content"><h2 id="注册七牛云"><a href="#注册七牛云" class="headerlink" title="注册七牛云"></a>注册七牛云</h2><p>如果还没有七牛云账号，需要先申请，通过<a href="https://portal.qiniu.com/signup?code=1hdcuqdt28nyq" target="_blank" rel="noopener">邀请链接</a>注册的同时，我也可以获得额外的5GB流量。</p>
-<p>注册认证完成之后，登录七牛云官网，开通对象存储，然后新建空间即可。</p>
-<blockquote>
-<p>在新建空间的时候，如果没有特别私密图片的话，访问控制建议选择<strong>公开</strong>，因为选择私有的情况下，外部访问图片相对来说会麻烦点。</p>
+    <section class="markdown-content"><blockquote>
+<p>有过一定开发经验的人都应该知道并发编程。并发编程是一种现代计算机编程技术。它的含义比较宽泛，可以是多线程编程，也可以是多进程编程，还可以是编写分布式程序<strong>。Go最明显的优势在于拥有基于多线程的并发编程方式。</strong></p>
 </blockquote>
-<p>空间创建完成之后，系统会随机分配一个测试域名，就是通过这个域名来访问资源。注意，此域名有效期只有一个月。所以没有域名的小伙伴，建议注册一个域名，并且及时备案。然后将域名改为自己的域名。</p>
-<h2 id="安装七牛云插件"><a href="#安装七牛云插件" class="headerlink" title="安装七牛云插件"></a>安装七牛云插件</h2><p>1、进入到博客目录下，执行下面命令，等待安装完成即可。</p>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">$</span><span class="bash"> npm install hexo-qiniu-sync --save</span></span><br></pre></td></tr></table></figure>
+<h2 id="并发编程基础"><a href="#并发编程基础" class="headerlink" title="并发编程基础"></a>并发编程基础</h2><p>并发编程思想来自于多任务操作系统，它允许同时运行多个程序。在早期单用户操作系统中，任务是一个接一个运行的，各个任务的执行完全是串行的。只有一个任务完成之后，另一个任务才会被读取。而多任务操作系统则允许终端用户同时运行多个程序。当一个程序暂时不需要使用CPU的时候，系统会把该程序挂起或中断，以使其它程序可以使用CPU。</p>
+<p>最早支持并发编程的计算机语言是汇编语言。不过那个时候并没有任何理论基础来支持这种编程方式。这样一个细微的编程错误就会使程序变得非常不稳定，并且对这种程序的测试也几乎不可能。</p>
+<p>经过多年的进化，并发程序的编写早已没有以那么复杂了。大多数现代软件设计技术都可以比较方便的产出支持并发的程序。但是由于并发程序往往具有更复杂的结构，所以编写起来也更困难，且更容易出错。</p>
+<p>总体来看，感觉编写并发程序会更加困难的原因有两个：</p>
+<ul>
+<li>一是缺乏既非常适合开发应用程序又对并发编程有良好支持的语言。</li>
+<li>二是感觉（也许仅仅是感觉）并发编程的理论太难了。</li>
+</ul>
+<p>第一个原因确实客观存在。不过现代许多编程语言都致力于降低编程门槛，实际情况已经比之前好很多了；至于第二个原因，我认为这不应该成为专业编程人员躲避编写并发程序的借口，况且在互联网圈子里也避无可避，这也是真正理解一门编程语言必不可少的一步。</p>
+<h3 id="串行程序和并发程序区别"><a href="#串行程序和并发程序区别" class="headerlink" title="串行程序和并发程序区别"></a>串行程序和并发程序区别</h3><p>串行程序特指只能被顺序执行的指令列表，并发程序则是可以被并发执行的两个及以上的串行程序的综合体。</p>
+<p>并发程序允许其中的串行程序运行在一个或多个可共享的CPU之上，同时也允许每个串行程序都运行在专为它服务的CPU上。<strong>前一种也称为多元程序。</strong></p>
+<h3 id="并发程序和并行程序的区别"><a href="#并发程序和并行程序的区别" class="headerlink" title="并发程序和并行程序的区别"></a>并发程序和并行程序的区别</h3><p>我们常常把并发和并行这两个概念ijiqd一起。但是，实际上它们有很明显的区别：</p>
+<ul>
+<li><p>并发程序是指可以被同时发起执行的程序。</p>
+</li>
+<li><p>并行程序则是被设计成可以在并行的硬件是执行的并发程序。</p>
+</li>
+</ul>
+<p><a href="http://www.cnerlang.com/" target="_blank" rel="noopener">Erlang</a> 之父画了一张5岁小孩都能看懂的图，我们也能看懂吧（笑 crying…）。</p>
+<img src="http://q8mr3z1u9.bkt.clouddn.com/static/images/并发程序和并行程序我区别.jpg">
 
-<p>2、配置七牛云</p>
-<p>在博客根目录下的 _config.yml 文件中添加如下配置：</p>
-<figure class="highlight yaml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 七牛</span></span><br><span class="line"><span class="attr">qiniu:</span></span><br><span class="line">  <span class="attr">offline:</span> <span class="literal">false</span></span><br><span class="line">  <span class="attr">sync:</span> <span class="literal">true</span></span><br><span class="line">  <span class="attr">bucket:</span> <span class="string">bucket_name</span></span><br><span class="line">  <span class="attr">secret_file: sec/qn.json or C:</span></span><br><span class="line">  <span class="attr">access_key:</span> <span class="string">AccessKey</span></span><br><span class="line">  <span class="attr">secret_key:</span> <span class="string">SecretKey</span></span><br><span class="line">  <span class="attr">dirPrefix:</span> <span class="string">static</span></span><br><span class="line">  <span class="attr">urlPrefix:</span> <span class="string">http://bucket_name.qiniudn.com/static</span></span><br><span class="line">  <span class="attr">up_host:</span> <span class="string">http://upload.qiniu.com</span></span><br><span class="line">  <span class="attr">local_dir:</span> <span class="string">static</span></span><br><span class="line">  <span class="attr">update_exist:</span> <span class="literal">true</span></span><br><span class="line">  <span class="attr">image:</span> </span><br><span class="line">    <span class="attr">folder:</span> <span class="string">images</span></span><br><span class="line">    <span class="attr">extend:</span> </span><br><span class="line">  <span class="attr">js:</span></span><br><span class="line">    <span class="attr">folder:</span> <span class="string">js</span></span><br><span class="line">  <span class="attr">css:</span></span><br><span class="line">    <span class="attr">folder:</span> <span class="string">css</span></span><br></pre></td></tr></table></figure>
-
-<p>其中<code>access_key</code>和<code>secret_key</code>两个密钥在个人中心，密钥管理中。其它配置参数，可以参考<a href="https://github.com/gyk001/hexo-qiniu-sync" target="_blank" rel="noopener">官方文档</a>。</p>
-<h2 id="使用插件"><a href="#使用插件" class="headerlink" title="使用插件"></a>使用插件</h2><h3 id="同步资源"><a href="#同步资源" class="headerlink" title="同步资源"></a>同步资源</h3><p>配置完成之后，启动本地服务器：</p>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">$</span><span class="bash"> hexo s</span></span><br></pre></td></tr></table></figure>
-
-<p>启动服务之后，会自动生成配置中<code>local_dir</code>指定的的文件夹。然后把你需要上传的静态资源存放里面，再使用同步命令：</p>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">$</span><span class="bash"> hexo qiniu sync	<span class="comment"># 同步静态资源到七牛空间。可以简写成：hexo qiniu s</span></span></span><br></pre></td></tr></table></figure>
-
-<p>或</p>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">$</span><span class="bash"> hexo qiniu sync2 <span class="comment"># 同步静态资源到七牛空间，且会同步上传那些本地与七牛空间有差异的文件。可以简写成：hexo qiniu s2</span></span></span><br></pre></td></tr></table></figure>
-
-<p>命令会扫描<code>local_dir</code>目录下的文件，同步至七牛空间。此时，就可以在七牛云的个人空间中看到这些静态资源了。</p>
-<h3 id="如何使用"><a href="#如何使用" class="headerlink" title="如何使用"></a>如何使用</h3><p>在我们用<code>markdown</code>编写博客的时候，使用下面语法即可使用：</p>
-<figure class="highlight markdown"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">&#123;% qnimg test.png %&#125;</span><br></pre></td></tr></table></figure>
-
-<p>其中<code>test.png</code>就是你上传的静态资源。</p>
-<p>更完整的使用方法请见<a href="https://github.com/gyk001/hexo-qiniu-sync" target="_blank" rel="noopener">官方文档</a>。</p>
+<h3 id="并发程序的不确定性"><a href="#并发程序的不确定性" class="headerlink" title="并发程序的不确定性"></a>并发程序的不确定性</h3><p>串行程序中所有代码的先后顺序都是确定固定的，而并发程序中只有部分代码是有序的。也就是说，其中一些代码执行的顺序并没有明确指定。这一特性称为<strong>不确定性</strong>，这导致并发程序每次运行的代码执行路径都是不同的。即使在输入数据相同的前提下，也是如此。</p>
+<h3 id="并发程序内部的交互"><a href="#并发程序内部的交互" class="headerlink" title="并发程序内部的交互"></a>并发程序内部的交互</h3><p>并发程序内部会被划分为多个部分，每个部分都可以看作一个串行程序。在这些串行程序之间，可能会存在交互的需求。比如，多个串行程序可能都要对一个共享资源进行访问。又比如，它们之间需要传递一些数据。在这些情况下，我们就需要协调它们的执行，这就涉及<strong>同步</strong>。同步的作用是避免在并发访问共享资源时可能发生的冲突，以及有条不紊的传递数据。</p>
+<p>根据同步的原则，程序如果想使用一个共享资源，就必须先请求该资源并获得到对它的访问权。当程序不再需要某个资源的时候也，也应该放弃对该资源的访问权（也称释放资源）。一个程序对资源的请求不应该导致其他正在访问该资源的程序中断，而是应该等那个程序释放该资源之后再进行请求。也就是说，在同一时刻，某个资源应该只被一个程序占用。</p>
+<p>传递数据是并发程序内部的另一种交互方式，也称<strong>并发程序内部的通信</strong>。实际上协调这种内部通信方式不只“同步”这一种。我们也可以利用异步的方式对通信进行管理，这种方式可以使数据不加延迟的的发送给数据接收方。即使接收方还没为接收数据做好准备，也不会造成发送方的等待。数据会被临时存放在一个称为<strong>通信缓存</strong>的数据结构中。通信缓存是一种特殊的共享资源，它可以同时被多个程序使用。接收方可以在准备就绪之后按照数据存入通信缓存的顺序接收它们。</p>
 </section>
     <!-- Tags START -->
     
       <div class="tags">
         <span>Tags:</span>
         
-  <a href="/tags#Hexo" >
-    <span class="tag-code">Hexo</span>
+  <a href="/tags#Go" >
+    <span class="tag-code">Go</span>
+  </a>
+
+  <a href="/tags#并发编程" >
+    <span class="tag-code">并发编程</span>
   </a>
 
       </div>
@@ -211,20 +214,13 @@
   <div class="nav-container">
     <!-- reverse left and right to put prev and next in a more logic postition -->
     
-      <a class="nav-left" href="/2020/04/13/HexoToServer/">
+      <a class="nav-left" href="/2020/04/15/HexoQiniu/">
         <span class="nav-arrow">← </span>
         
-          如何用Hexo在云主机上搭建博客
+          在Hexo博客上使用七牛云图床
         
       </a>
     
-    
-      <a class="nav-right" href="/2020/04/16/Go%E5%B9%B6%E5%8F%91%E7%BC%96%E7%A8%8B%EF%BC%88%E4%B8%80%EF%BC%89%20%E5%B9%B6%E5%8F%91%E7%BC%96%E7%A8%8B%E5%9F%BA%E7%A1%80/">
-        
-          Go并发编程（一） 并发编程基础
-        
-        <span class="nav-arrow"> →</span>
-      </a>
     
   </div>
 
@@ -270,7 +266,7 @@
   <div class="toc-main">
     <strong class="toc-title">Catalog</strong>
     
-      <ol class="toc-nav"><li class="toc-nav-item toc-nav-level-2"><a class="toc-nav-link" href="#注册七牛云"><span class="toc-nav-text">注册七牛云</span></a></li><li class="toc-nav-item toc-nav-level-2"><a class="toc-nav-link" href="#安装七牛云插件"><span class="toc-nav-text">安装七牛云插件</span></a></li><li class="toc-nav-item toc-nav-level-2"><a class="toc-nav-link" href="#使用插件"><span class="toc-nav-text">使用插件</span></a><ol class="toc-nav-child"><li class="toc-nav-item toc-nav-level-3"><a class="toc-nav-link" href="#同步资源"><span class="toc-nav-text">同步资源</span></a></li><li class="toc-nav-item toc-nav-level-3"><a class="toc-nav-link" href="#如何使用"><span class="toc-nav-text">如何使用</span></a></li></ol></li></ol>
+      <ol class="toc-nav"><li class="toc-nav-item toc-nav-level-2"><a class="toc-nav-link" href="#并发编程基础"><span class="toc-nav-text">并发编程基础</span></a><ol class="toc-nav-child"><li class="toc-nav-item toc-nav-level-3"><a class="toc-nav-link" href="#串行程序和并发程序区别"><span class="toc-nav-text">串行程序和并发程序区别</span></a></li><li class="toc-nav-item toc-nav-level-3"><a class="toc-nav-link" href="#并发程序和并行程序的区别"><span class="toc-nav-text">并发程序和并行程序的区别</span></a></li><li class="toc-nav-item toc-nav-level-3"><a class="toc-nav-link" href="#并发程序的不确定性"><span class="toc-nav-text">并发程序的不确定性</span></a></li><li class="toc-nav-item toc-nav-level-3"><a class="toc-nav-link" href="#并发程序内部的交互"><span class="toc-nav-text">并发程序内部的交互</span></a></li></ol></li></ol>
     
   </div>
 </aside>
@@ -280,7 +276,7 @@
 
 <script>
   (function () {
-    var url = 'http://zmoyi.com/2020/04/15/HexoQiniu/';
+    var url = 'http://zmoyi.com/2020/04/16/Go并发编程（一） 并发编程基础/';
     var banner = ''
     if (banner !== '' && banner !== 'undefined' && banner !== 'null') {
       $('#article-banner').css({
