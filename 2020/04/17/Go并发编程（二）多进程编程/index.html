@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html>
+  <head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0" name="viewport">
+  <meta name="description" content="本博客于 2020 年建站，记录了我在工作过程中学到的技术、运营及产品等知识，并以原创文章的形式分享给大家。未来仍然将坚持不懈的分享技术知识、工作经历等原创内容。 希望看到本博客的前辈多指点扶正、同行们能一起共同学习与进步、正在学习的小伙伴能通过本博客学到对自己有用的知识。">
+  <meta name="keyword" content="ZMOYI, 原创博客, Java, Golang, Linux, 全栈, 后端开发, 前端开发">
+  
+    <link rel="shortcut icon" type="image/ico" href="http://q8mr3z1u9.bkt.clouddn.com/static/images/ico.png"/>
+  
+  <title>
+    
+      Go并发编程（二） 多进程编程 | Fane&#39;Blog
+    
+  </title>
+  <link href="//cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css" rel="stylesheet">
+  <link href="//cdnjs.cloudflare.com/ajax/libs/nprogress/0.2.0/nprogress.min.css" rel="stylesheet">
+  <link href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/tomorrow.min.css" rel="stylesheet">
+  
+<link rel="stylesheet" href="/css/style.css">
+
+  
+  
+    
+<link rel="stylesheet" href="https://unpkg.com/gitalk/dist/gitalk.css">
+
+  
+  <script src="//cdnjs.cloudflare.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+  <script src="//cdnjs.cloudflare.com/ajax/libs/geopattern/1.2.3/js/geopattern.min.js"></script>
+  <script src="//cdnjs.cloudflare.com/ajax/libs/nprogress/0.2.0/nprogress.min.js"></script>
+  
+    
+<script src="/js/qrious.js"></script>
+
+  
+  
+  
+    
+<script src="https://unpkg.com/gitalk/dist/gitalk.min.js"></script>
+
+  
+  
+  
+    <!-- MathJax support START -->
+    <script type="text/x-mathjax-config">
+      MathJax.Hub.Config({
+        tex2jax: {
+          inlineMath: [ ['$','$'], ["\\(","\\)"]  ],
+          processEscapes: true,
+          skipTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
+        }
+      });
+    </script>
+
+    <script type="text/x-mathjax-config">
+      MathJax.Hub.Queue(function() {
+        var all = MathJax.Hub.getAllJax(), i;
+        for (i=0; i < all.length; i += 1) {
+          all[i].SourceElement().parentNode.className += ' has-jax';
+        }
+      });
+    </script>
+    <script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <!-- MathJax support END -->
+  
+
+
+  
+<meta name="generator" content="Hexo 4.2.0"></head>
+<div class="wechat-share">
+  <img src="/css/images/logo.png" />
+</div>
+
+  <body>
+    <header class="header fixed-header">
+  <div class="header-container">
+    <a class="home-link" href="/">
+      <div class="logo"></div>
+      <span>Fane'Blog</span>
+    </a>
+    <ul class="right-list">
+      
+        <li class="list-item">
+          
+            <a href="/" class="item-link">Home</a>
+          
+        </li>
+      
+        <li class="list-item">
+          
+            <a href="/tags/" class="item-link">Tags</a>
+          
+        </li>
+      
+        <li class="list-item">
+          
+            <a href="/archive/" class="item-link">Archives</a>
+          
+        </li>
+      
+        <li class="list-item">
+          
+            <a href="/project/" class="item-link">Projects</a>
+          
+        </li>
+      
+        <li class="list-item">
+          
+            <a href="/about/" class="item-link">About</a>
+          
+        </li>
+      
+    </ul>
+    <div class="menu">
+      <span class="icon-bar"></span>
+      <span class="icon-bar"></span>
+      <span class="icon-bar"></span>
+    </div>
+    <div class="menu-mask">
+      <ul class="menu-list">
+        
+          <li class="menu-item">
+            
+              <a href="/" class="menu-link">Home</a>
+            
+          </li>
+        
+          <li class="menu-item">
+            
+              <a href="/tags/" class="menu-link">Tags</a>
+            
+          </li>
+        
+          <li class="menu-item">
+            
+              <a href="/archive/" class="menu-link">Archives</a>
+            
+          </li>
+        
+          <li class="menu-item">
+            
+              <a href="/project/" class="menu-link">Projects</a>
+            
+          </li>
+        
+          <li class="menu-item">
+            
+              <a href="/about/" class="menu-link">About</a>
+            
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+</header>
+
+    <div id="article-banner">
+  <h2>Go并发编程（二） 多进程编程</h2>
+  <p class="post-date">2020-04-17</p>
+  <div class="arrow-down">
+    <a href="javascript:;"></a>
+  </div>
+</div>
+<main class="app-body flex-box">
+  <!-- Article START -->
+  <article class="post-article">
+    <section class="markdown-content"><blockquote>
+<p>本文主要讲述进程相关的基本概念。</p>
+</blockquote>
+<h2 id="进程基础概念"><a href="#进程基础概念" class="headerlink" title="进程基础概念"></a>进程基础概念</h2><h3 id="进程的定义"><a href="#进程的定义" class="headerlink" title="进程的定义"></a>进程的定义</h3><p>进程是基于Unix用项衍生操作系统的根本，因为所有代码都是在进程中执行的。<strong>通常，把一个程序的执行称为一个进程。</strong>反过来讲，进程用于描述程序的执行过程。因此，程序和进程是一对概念，它们分别描述了一个程序的静态形式和动态特征。除此之外，进程还是一个操作系统进程资源分配的一个基本单位。</p>
+<h3 id="进程和衍生"><a href="#进程和衍生" class="headerlink" title="进程和衍生"></a>进程和衍生</h3><p>进程使用fork（一个系统调用函数）可以创建若干个新的进程。其中前者称为后者的<strong>父进程</strong>，后者称为前者的<strong>子进程</strong>。每个子进程源自它父进程的一个副本，它会获得父进程的数据段、堆和栈的副本，并与父进程共享代码段。第份副本都是独立的，子进程对属于它的副本的修改对其父进程和兄弟进程都是不可见的，反之亦然。</p>
+<p>Unix/Linux操作系统的每一个进程都有父进程。所有的进程共同组成一个树状结构。<strong>内核启动进程</strong>是进程树的根，负面操作系统的初始化，它是所有进程的祖先，它的父进程是它自己。</p>
+<p>如果某一个进程等于它的子进程结束，那么这些子进程将会被纳到内核启动进程下，成为它的直接子进程。</p>
+<h3 id="进程的标识"><a href="#进程的标识" class="headerlink" title="进程的标识"></a>进程的标识</h3><p>为了管理进程，内核必须对每个进程的的属性和行为进行记录，包括进程的优先级、状态、虚拟地址范围以及各种权限等等。这些信息都会被记录在<strong>进程描述符</strong>中。进程描述符并不是一个简单的符号，而是一个非常复杂的数据结构。保存在进程描述符跌<strong>进程ID（PID）</strong>是进程在操作系统中的唯一标识，其中ID为1的就是内核启动进程。</p>
+<p>进程ID是递增的非负整数。进程ID也可以重复使用，当进程ID到达最大限值时，内核会从头查找闲置的进程ID并使用最先找到的那个作为新的进程ID。另外，进程rass符中还会记录当前进程的<strong>父进程的ID（PPID）</strong>。</p>
+<blockquote>
+<p>PID并不传达与进程有关的任何信息。它只是用来唯一标识进程的数字而已。进程的属性信息只包含在内核中与PID对应的进程描述符中。PPID体现了两个进程间的关系，我们可以利用它做一些事情，比如，利用它顺藤摸瓜，查找守护进程。</p>
+</blockquote>
+<p>通过Go标准库中的os包可以苑当前进程的PID和PPID：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">pid := os.Getpid()</span><br><span class="line">ppid := os.Getppid()</span><br></pre></td></tr></table></figure>
+
+<h3 id="进程的空间划分"><a href="#进程的空间划分" class="headerlink" title="进程的空间划分"></a>进程的空间划分</h3><p><strong>用户进程</strong>（或者说程序的执行实例）总是生存在用户空间中，不能与其所在的计算机硬件进行交互。内核可以与硬件进行交互，但是它却是生存在内核空间中。</p>
+<p>用户进程无法直接访问内核空间。用户空间和内核空间都是操作系统在内存上划分的一个范围，它们共同瓜分了操作系统能够支配的内存区域，并体现了Linux操作系统对物理内存的划分。</p>
+<p>内存区域中的每个单元都是有地址的，这些地址由指针来标识和定位。通过指针来寻找内存单元的操作也叫<strong>内存寻址</strong>。指针是一个正整数，由若干个二进制位表示，具体的二进制位的数量由计算机（确切的说是CPU）的字长决定。因此，在32位计算机中可以有效标识2^32的内存单元，而64位计算机中可以有效标识2^64的内存单元。</p>
+<p>这里所说的地址并非物理内存中的地址，而是虚拟地址。面由虚拟地址来标识的内存区域又称为虚拟地址空间，也就是我们说的<strong>虚拟内存</strong>。</p>
+<img src="http://q8mr3z1u9.bkt.clouddn.com/static/images/Linux操作系统对虚拟内存的划分.jpg">
+
+<p>如上图所示，用户空间虚拟地址的范围是从0到 TASK_SIZE，而内核空间则占据了剩余的空间，TASK_SIZE相当于这两个空间的分界线，它实际上是一个常数，由计算机的体系结构决定。</p>
+<p>用户会为每个用户进程分配的是虚拟内存而不是物理内存。每个用户进程分配到的虚拟内存总是在用户空间中，而内核空间则是留给内核专用。另外，每个进程都认为分配给它的虚拟内存就是整个用户空间。一个用户进程不可能操纵另一个用户进程的虚拟内存，因为后者的虚拟内存对于前者来说是不可见的。</p>
+<h3 id="什么是系统调用"><a href="#什么是系统调用" class="headerlink" title="什么是系统调用"></a>什么是系统调用</h3><p>前面说到，用户进程生存在用户空间且无法直接操纵计算机硬件，但是内核空间中的内核却可以做到。用户进程无法直接访问内核空间，也无法随意指使内核去做一些事情。</p>
+<p>但是为了使用户进程能够使用操作系统更底层的功能，内核会暴露一些接口共它们使用，这些接口是用户进程使用内核功能（包括操作计算机硬件）的唯一手段，也是用户空间和内核空间之间的一座桥梁。用户进程使用这些接口的行为就称为<strong>系统调用</strong>， 不过很多时间“系统调用”也指内核提供的这些接口。</p>
+<p><strong>系统调用和普通函数的区别</strong></p>
+<p>系统调用是由函数呈现，但是这些函数与普通函数有明显的区别。系统调用是向内核空间发出一个明确请求，而普通函数只是定义了如何获取一个给定的服务。更重要的是，系统调用会导致内核空间中数据的存取和指令的执行，面普通函数却只能在用户空间作为。另外，系统调用是内核的一部分，而普通函数却不是。</p>
+<p><strong>内核态和用户态</strong></p>
+<p>说一系统调用，就不得不提及另一对概念——内核态和用户态。为了保证操作系统的安全，内核依据由CPU提供的、可以让进程驻留的特权级别建立了两个特权状态——<strong>内核态和用户态</strong>。</p>
+<p>在大部分时间里，CPU都处于用户态，这里CPU只能对用户空间进行访问。换言之，CPU在用户态下进行的用户进程是不能于内核接触的。当用户进程发起一个系统调用，内核会把CPU从用户态切换到内核态，而后会让CPU执行对应的内核函数。</p>
+<p>CPU在内核态下是有权访问内核空间的，这就相当于实现在用户进程可以通过系统调用使用内核提供的功能。当内核函数执行完毕后，内核会把CPU从内核态切回用户态，并把执行结果返回给用户进程。</p>
+<img src="http://q8mr3z1u9.bkt.clouddn.com/static/images/系统调用过程示意图.jpg">
+
+<p>从上图可以看出一个系统调用从开始到结束的完整流程。再次强调，只有当CPU切换到内核态后，才能执行内核函数，而内核函数执行完毕之后，CPU状态也被切回用户态。</p>
+<h3 id="进程的切换和调度"><a href="#进程的切换和调度" class="headerlink" title="进程的切换和调度"></a>进程的切换和调度</h3><p>各其它分时操作系统一样，Linux操作系统也可以凭借CPU的威力快速的在多个进程间切换，这也称为进程间的<strong>上下文切换</strong>。如此会产生多个进程同时运行的假象，而每个进程都会认为自己独占了CPU，这就是<strong>多任务操作系统</strong>的由来。不过无论切换速度如何，在同一时刻运行的进程只有一个。</p>
+<p>切换CPU正在运行的进程是需要代价。例如，内核此刻要换下正在CPU上运行的A，并让CPU开始运行进程B。在换下进程A之前，内核必须及时保存进程A的运行状态。另一方面，假设进程B不是第一次运行，那么 让进程B重新运行之前，内核必须要保证已经依据之前保存的相关信息把进程B恢复到之前被换下时的运行时状态。</p>
+<p>这种在进程换入换出期间必须要做的任务称为<strong>进程切换</strong>，这个任务主要由内核来完成。除了进入切换，为了使各个生存着的进程都有运行的机会，内核还要考虑下次切换时运行哪个进程、何时进行切换、被换下的进程何时再换上，等待。解决类型问题的方案和任务统称<strong>进程调度</strong>。</p>
+<p>进程切换和进程调度是多个程序并发执行的基础，没有前者，后者就无从谈起。</p>
+<h3 id="进程间通信"><a href="#进程间通信" class="headerlink" title="进程间通信"></a>进程间通信</h3><p>在现代操作系统中，我们可以很方便编写出多进程的程序。在多进程程序中，如果多个进程之间需要协作完成任务，那么进程间通信的方式就是需要重点考虑。这种通信常被叫做<strong>IPC（Inter-Process Communication）</strong>。</p>
+<p>在Linux操作系统中，可以使用和IPC方法有很多种。从处理机制的角度看，可以分为三大类：</p>
+<ul>
+<li>基于通信的IPC方法。其中又分为：<ul>
+<li>以数据为传送手段的IPC方法，包括：<ul>
+<li>管道（pipe）：可以用来传送字节流。</li>
+<li>消息队列（message queue）：可以用来传送结构对象。</li>
+</ul>
+</li>
+<li>以共享内存为手段的IPC方法<ul>
+<li>共享内存区（shared memory）：是最快的一种IPC方法</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>基于信号的IPC方法：<ul>
+<li>操作系统的信号（signal）机制，是唯一一种异步IPC方法</li>
+</ul>
+</li>
+<li>基于同步的IPC方法：<ul>
+<li>信号量（semaphore）</li>
+</ul>
+</li>
+</ul>
+<p>Go支持的IPC方法有管道（pipe）、信号和socket。</p>
+</section>
+    <!-- Tags START -->
+    
+      <div class="tags">
+        <span>Tags:</span>
+        
+  <a href="/tags#Go" >
+    <span class="tag-code">Go</span>
+  </a>
+
+  <a href="/tags#并发编程" >
+    <span class="tag-code">并发编程</span>
+  </a>
+
+      </div>
+    
+    <!-- Tags END -->
+    <!-- NAV START -->
+    
+  <div class="nav-container">
+    <!-- reverse left and right to put prev and next in a more logic postition -->
+    
+      <a class="nav-left" href="/2020/04/16/Go%E5%B9%B6%E5%8F%91%E7%BC%96%E7%A8%8B%EF%BC%88%E4%B8%80%EF%BC%89%E5%B9%B6%E5%8F%91%E7%BC%96%E7%A8%8B%E5%9F%BA%E7%A1%80/">
+        <span class="nav-arrow">← </span>
+        
+          Go并发编程（一） 并发编程基础
+        
+      </a>
+    
+    
+      <a class="nav-right" href="/2020/04/18/Go%E5%B9%B6%E5%8F%91%E7%BC%96%E7%A8%8B%EF%BC%88%E4%B8%89%EF%BC%89%E5%90%8C%E6%AD%A5%E9%97%AE%E9%A2%98%E5%88%9D%E6%8E%A2/">
+        
+          Go并发编程（三）同步问题初探
+        
+        <span class="nav-arrow"> →</span>
+      </a>
+    
+  </div>
+
+    <!-- NAV END -->
+    <!-- 打赏 START -->
+    
+      <div class="money-like">
+        <div class="reward-btn">
+          赏
+          <span class="money-code">
+            <span class="alipay-code">
+              <div class="code-image"></div>
+              <b>使用支付宝打赏</b>
+            </span>
+            <span class="wechat-code">
+              <div class="code-image"></div>
+              <b>使用微信打赏</b>
+            </span>
+          </span>
+        </div>
+        <p class="notice">若你觉得我的文章对你有帮助，欢迎点击上方按钮对我打赏</p>
+      </div>
+    
+    <!-- 打赏 END -->
+    <!-- 二维码 START -->
+    
+      <div class="qrcode">
+        <canvas id="share-qrcode"></canvas>
+        <p class="notice">扫描二维码，分享此文章</p>
+      </div>
+    
+    <!-- 二维码 END -->
+    
+      <!-- Gitalk START -->
+      <div id="gitalk-container"></div>
+      <!-- Gitalk END -->
+    
+  </article>
+  <!-- Article END -->
+  <!-- Catalog START -->
+  
+    <aside class="catalog-container">
+  <div class="toc-main">
+    <strong class="toc-title">Catalog</strong>
+    
+      <ol class="toc-nav"><li class="toc-nav-item toc-nav-level-2"><a class="toc-nav-link" href="#进程基础概念"><span class="toc-nav-text">进程基础概念</span></a><ol class="toc-nav-child"><li class="toc-nav-item toc-nav-level-3"><a class="toc-nav-link" href="#进程的定义"><span class="toc-nav-text">进程的定义</span></a></li><li class="toc-nav-item toc-nav-level-3"><a class="toc-nav-link" href="#进程和衍生"><span class="toc-nav-text">进程和衍生</span></a></li><li class="toc-nav-item toc-nav-level-3"><a class="toc-nav-link" href="#进程的标识"><span class="toc-nav-text">进程的标识</span></a></li><li class="toc-nav-item toc-nav-level-3"><a class="toc-nav-link" href="#进程的空间划分"><span class="toc-nav-text">进程的空间划分</span></a></li><li class="toc-nav-item toc-nav-level-3"><a class="toc-nav-link" href="#什么是系统调用"><span class="toc-nav-text">什么是系统调用</span></a></li><li class="toc-nav-item toc-nav-level-3"><a class="toc-nav-link" href="#进程的切换和调度"><span class="toc-nav-text">进程的切换和调度</span></a></li><li class="toc-nav-item toc-nav-level-3"><a class="toc-nav-link" href="#进程间通信"><span class="toc-nav-text">进程间通信</span></a></li></ol></li></ol>
+    
+  </div>
+</aside>
+  
+  <!-- Catalog END -->
+</main>
+
+<script>
+  (function () {
+    var url = 'http://zmoyi.com/2020/04/17/Go并发编程（二）多进程编程/';
+    var banner = ''
+    if (banner !== '' && banner !== 'undefined' && banner !== 'null') {
+      $('#article-banner').css({
+        'background-image': 'url(' + banner + ')'
+      })
+    } else {
+      $('#article-banner').geopattern(url)
+    }
+    $('.header').removeClass('fixed-header')
+
+    // error image
+    $(".markdown-content img").on('error', function() {
+      $(this).attr('src', 'http://file.muyutech.com/error-img.png')
+      $(this).css({
+        'cursor': 'default'
+      })
+    })
+
+    // zoom image
+    $(".markdown-content img").on('click', function() {
+      var src = $(this).attr('src')
+      if (src !== 'http://file.muyutech.com/error-img.png') {
+        var imageW = $(this).width()
+        var imageH = $(this).height()
+
+        var zoom = ($(window).width() * 0.95 / imageW).toFixed(2)
+        zoom = zoom < 1 ? 1 : zoom
+        zoom = zoom > 2 ? 2 : zoom
+        var transY = (($(window).height() - imageH) / 2).toFixed(2)
+
+        $('body').append('<div class="image-view-wrap"><div class="image-view-inner"><img src="'+ src +'" /></div></div>')
+        $('.image-view-wrap').addClass('wrap-active')
+        $('.image-view-wrap img').css({
+          'width': `${imageW}`,
+          'transform': `translate3d(0, ${transY}px, 0) scale3d(${zoom}, ${zoom}, 1)`
+        })
+        $('html').css('overflow', 'hidden')
+
+        $('.image-view-wrap').on('click', function() {
+          $(this).remove()
+          $('html').attr('style', '')
+        })
+      }
+    })
+  })();
+</script>
+
+
+  <script>
+    var qr = new QRious({
+      element: document.getElementById('share-qrcode'),
+      value: document.location.href
+    });
+  </script>
+
+
+
+
+
+  <script type="text/javascript">
+    var gitalk = new Gitalk({
+      clientID: '595f268d984e0123456f',
+      clientSecret: 'e4c1799bc7a82448653f758927992c6217beb7cb',
+      id: window.location.pathname,
+      repo: 'fanezhao.github.io',
+      owner: 'fanezhao',
+      admin: 'fanezhao'
+    })
+    gitalk.render('gitalk-container')
+  </script>
+
+
+
+
+    <div class="scroll-top">
+  <span class="arrow-icon"></span>
+</div>
+    <footer class="app-footer">
+  <p class="copyright">
+    &copy;2020 by <a href="https://github.com/fanezhao" target="_blank" rel="noopener">fanezhao</a>
+    <br>
+    PV: <span id="busuanzi_value_site_pv"></span> |
+    UV: <span id="busuanzi_value_site_uv"></span> |
+    PPV: <span id="busuanzi_value_page_pv"></span>
+  </p>
+</footer>
+
+<script>
+  function async(u, c) {
+    var d = document, t = 'script',
+      o = d.createElement(t),
+      s = d.getElementsByTagName(t)[0];
+    o.src = u;
+    if (c) { o.addEventListener('load', function (e) { c(null, e); }, false); }
+    s.parentNode.insertBefore(o, s);
+  }
+</script>
+<script>
+  async("//cdnjs.cloudflare.com/ajax/libs/fastclick/1.0.6/fastclick.min.js", function(){
+    FastClick.attach(document.body);
+  })
+</script>
+
+<script>
+  var hasLine = 'true';
+  async("//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/highlight.min.js", function(){
+    $('figure pre').each(function(i, block) {
+      var figure = $(this).parents('figure');
+      if (hasLine === 'false') {
+        figure.find('.gutter').hide();
+      }
+      var lang = figure.attr('class').split(' ')[1] || 'code';
+      var codeHtml = $(this).html();
+      var codeTag = document.createElement('code');
+      codeTag.className = lang;
+      codeTag.innerHTML = codeHtml;
+      $(this).attr('class', '').empty().html(codeTag);
+      figure.attr('data-lang', lang.toUpperCase());
+      hljs.highlightBlock(block);
+    });
+  })
+</script>
+<!-- Baidu Tongji -->
+
+<script>
+    var _baId = 'bf809fdb4f2243c687ead4f074335c7c';
+    // Originial
+    var _hmt = _hmt || [];
+    (function() {
+      var hm = document.createElement("script");
+      hm.src = "//hm.baidu.com/hm.js?" + _baId;
+      var s = document.getElementsByTagName("script")[0];
+      s.parentNode.insertBefore(hm, s);
+    })();
+</script>
+
+<!-- busuanzi -->
+<script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+
+<script src="/js/script.js"></script>
+
+  </body>
+</html>

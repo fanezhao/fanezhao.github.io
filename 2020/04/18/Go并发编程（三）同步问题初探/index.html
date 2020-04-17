@@ -10,7 +10,7 @@
   
   <title>
     
-      在Hexo博客上使用七牛云图床 | Fane&#39;Blog
+      Go并发编程（三）同步问题初探 | Fane&#39;Blog
     
   </title>
   <link href="//cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css" rel="stylesheet">
@@ -155,8 +155,8 @@
 </header>
 
     <div id="article-banner">
-  <h2>在Hexo博客上使用七牛云图床</h2>
-  <p class="post-date">2020-04-15</p>
+  <h2>Go并发编程（三）同步问题初探</h2>
+  <p class="post-date">2020-04-18</p>
   <div class="arrow-down">
     <a href="javascript:;"></a>
   </div>
@@ -164,43 +164,67 @@
 <main class="app-body flex-box">
   <!-- Article START -->
   <article class="post-article">
-    <section class="markdown-content"><h2 id="注册七牛云"><a href="#注册七牛云" class="headerlink" title="注册七牛云"></a>注册七牛云</h2><p>如果还没有七牛云账号，需要先申请，通过<a href="https://portal.qiniu.com/signup?code=1hdcuqdt28nyq" target="_blank" rel="noopener">邀请链接</a>注册的同时，我也可以获得额外的5GB流量。</p>
-<p>注册认证完成之后，登录七牛云官网，开通对象存储，然后新建空间即可。</p>
-<blockquote>
-<p>在新建空间的时候，如果没有特别私密图片的话，访问控制建议选择<strong>公开</strong>，因为选择私有的情况下，外部访问图片相对来说会麻烦点。</p>
+    <section class="markdown-content"><blockquote>
+<p> 我们知道，内核对进程的切换和调度使得多个进程都可以有条不紊的并发执行。在很多时候，多个进程之间需要相互配合共同完成一个任务，就需要IPC的支持。什么是IPC？参考我的另一篇文章<a href="http://zmoyi.com/2020/04/17/Go%E5%B9%B6%E5%8F%91%E7%BC%96%E7%A8%8B%EF%BC%88%E4%BA%8C%EF%BC%89%E5%A4%9A%E8%BF%9B%E7%A8%8B%E7%BC%96%E7%A8%8B/">多进程编程</a>。</p>
 </blockquote>
-<p>空间创建完成之后，系统会随机分配一个测试域名，就是通过这个域名来访问资源。注意，此域名有效期只有一个月。所以没有域名的小伙伴，建议注册一个域名，并且及时备案。然后将域名改为自己的域名。</p>
-<h2 id="安装七牛云插件"><a href="#安装七牛云插件" class="headerlink" title="安装七牛云插件"></a>安装七牛云插件</h2><p>1、进入到博客目录下，执行下面命令，等待安装完成即可。</p>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">$</span><span class="bash"> npm install hexo-qiniu-sync --save</span></span><br></pre></td></tr></table></figure>
+<p>在通信过程中，各个进程之间可能会发生一些干扰，这种干扰主要集中在有共享数据的情况下。不论是多CPU、多进程还是多线程，只要它们之间存在数据共享，就一定会牵扯到同步问题。而且该问题具有普遍意义，其中一些概念和论点可以适用于很多场景。</p>
+<h2 id="模拟同步问题"><a href="#模拟同步问题" class="headerlink" title="模拟同步问题"></a>模拟同步问题</h2><p>我们以一个看似简单的应用场景——计数器，它由进程A创建并与进程B共享。进程A和进程B实际执行了相同的程序，这个程序是把符合条件的数据从数据库迁移到磁盘上。程序总是按照固定顺序从数据库中查询数据，并使用计数器记录的已查询的数据的最大行号作为依据。下面是具体步骤：</p>
+<ul>
+<li>1、读取计数器的值。</li>
+<li>2、从数据库中查询数据。如果我们使用c来代表计数器的值，那么查询的范围就是行号在[c, c+100000)的数据，每次查询10万条数据。</li>
+<li>3、遍历并筛选出符合条件的数据集合，并存储到指定的目录中，比如data1、data2等。</li>
+<li>4、把计数器值加100000。计数器的新值就是下次要查询的起始行号。</li>
+<li>5、检查数据是否读完，如果是，则退出，否则跳转回1。</li>
+</ul>
+<p>进程A和进程B会并发运行，它们会各自的循环迁移，直到数据全部迁移完成为止。</p>
+<p>这会出现问题么？那是肯定的。</p>
+<h3 id="流程一"><a href="#流程一" class="headerlink" title="流程一"></a>流程一</h3><p>由于内核会对各个进程进行切换和调度，所以不能保证进程在迁移每个数据的过程中不被打断。也就是说，进程A和进程B在运行的时候是互相穿插在一起的。下面我们假设一种进程调度过程：</p>
+<ul>
+<li>1、内核使CPU运行进程A.</li>
+<li>2、进程A读取计数器的值1，并以此查询、筛选得到数据集合。</li>
+<li>3、内核认为进程A运行了足够长的时间了，所以把进程A换下并让CPU开始运行进程B。</li>
+<li>4、进程B读取计数器的值为1，并以此查询、筛选得到数据集合。注意，这个时候的数据集合和进程A得到的那个完全一样。</li>
+<li>5、进程B把数据集合写入data1文件中，并在写完后关闭文件。</li>
+<li>6、内核把进程B换下并让CPU开始运行进程A。</li>
+<li>7、进程A把得到的数据集合写入data1中，并在写完后关闭文件。</li>
+<li>8、进程A把计数器值更新成100001。</li>
+<li>9、内核把进程A换下并让CPU开始运行进程B。</li>
+<li>10、进程B把计数器值更新成100001。</li>
+</ul>
+<p>上述调度过程如图所示：</p>
+<img src="http://q8mr3z1u9.bkt.clouddn.com/static/images/计数器初始调度.jpg">
 
-<p>2、配置七牛云</p>
-<p>在博客根目录下的 _config.yml 文件中添加如下配置：</p>
-<figure class="highlight yaml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 七牛</span></span><br><span class="line"><span class="attr">qiniu:</span></span><br><span class="line">  <span class="attr">offline:</span> <span class="literal">false</span></span><br><span class="line">  <span class="attr">sync:</span> <span class="literal">true</span></span><br><span class="line">  <span class="attr">bucket:</span> <span class="string">bucket_name</span></span><br><span class="line">  <span class="attr">secret_file: sec/qn.json or C:</span></span><br><span class="line">  <span class="attr">access_key:</span> <span class="string">AccessKey</span></span><br><span class="line">  <span class="attr">secret_key:</span> <span class="string">SecretKey</span></span><br><span class="line">  <span class="attr">dirPrefix:</span> <span class="string">static</span></span><br><span class="line">  <span class="attr">urlPrefix:</span> <span class="string">http://bucket_name.qiniudn.com/static</span></span><br><span class="line">  <span class="attr">up_host:</span> <span class="string">http://upload.qiniu.com</span></span><br><span class="line">  <span class="attr">local_dir:</span> <span class="string">static</span></span><br><span class="line">  <span class="attr">update_exist:</span> <span class="literal">true</span></span><br><span class="line">  <span class="attr">image:</span> </span><br><span class="line">    <span class="attr">folder:</span> <span class="string">images</span></span><br><span class="line">    <span class="attr">extend:</span> </span><br><span class="line">  <span class="attr">js:</span></span><br><span class="line">    <span class="attr">folder:</span> <span class="string">js</span></span><br><span class="line">  <span class="attr">css:</span></span><br><span class="line">    <span class="attr">folder:</span> <span class="string">css</span></span><br></pre></td></tr></table></figure>
+<p>你可能发现，上述的调度过程有一个很明显的问题：进程A和进程B在做重复事情，导致了双倍的资源消耗，还有事倍功半的结果。</p>
+<p>这是因为同一个进程对计数器值的存取时间跨度太大，以至于计数器只起到了任务进度记录的作用，而没起到在进程间协调的作用。既然是由于时间跨度大引起的，我们就把这个时间跨度缩到最小，看能不能解决问题。</p>
+<h3 id="流程二"><a href="#流程二" class="headerlink" title="流程二"></a>流程二</h3><p>我们把上面的第4步移到第2步，在读取完计数器的值之后立即更新它。</p>
+<p>这样改进能够解决上述问题么？还是不能，假设此时的调度流程是这样的，内核在进程A已经读取但还没更新计数器的值的时候，让CPU运行进程B，会发生什么？请看下图：</p>
+<img src="http://q8mr3z1u9.bkt.clouddn.com/static/images/计数器初始调度改进.jpg">
 
-<p>其中<code>access_key</code>和<code>secret_key</code>两个密钥在个人中心，密钥管理中。其它配置参数，可以参考<a href="https://github.com/gyk001/hexo-qiniu-sync" target="_blank" rel="noopener">官方文档</a>。</p>
-<h2 id="使用插件"><a href="#使用插件" class="headerlink" title="使用插件"></a>使用插件</h2><h3 id="同步资源"><a href="#同步资源" class="headerlink" title="同步资源"></a>同步资源</h3><p>配置完成之后，启动本地服务器：</p>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">$</span><span class="bash"> hexo s</span></span><br></pre></td></tr></table></figure>
-
-<p>启动服务之后，会自动生成配置中<code>local_dir</code>指定的的文件夹。然后把你需要上传的静态资源存放里面，再使用同步命令：</p>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">$</span><span class="bash"> hexo qiniu sync	<span class="comment"># 同步静态资源到七牛空间。可以简写成：hexo qiniu s</span></span></span><br></pre></td></tr></table></figure>
-
-<p>或</p>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">$</span><span class="bash"> hexo qiniu sync2 <span class="comment"># 同步静态资源到七牛空间，且会同步上传那些本地与七牛空间有差异的文件。可以简写成：hexo qiniu s2</span></span></span><br></pre></td></tr></table></figure>
-
-<p>命令会扫描<code>local_dir</code>目录下的文件，同步至七牛空间。此时，就可以在七牛云的个人空间中看到这些静态资源了。</p>
-<h3 id="如何使用"><a href="#如何使用" class="headerlink" title="如何使用"></a>如何使用</h3><p>在我们用<code>markdown</code>编写博客的时候，使用下面语法即可使用：</p>
-<figure class="highlight markdown"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">&#123;% qnimg test.png %&#125;</span><br></pre></td></tr></table></figure>
-
-<p>其中<code>test.png</code>就是你上传的静态资源。</p>
-<p>更完整的使用方法请见<a href="https://github.com/gyk001/hexo-qiniu-sync" target="_blank" rel="noopener">官方文档</a>。</p>
+<p>显然从第二个调度流程来看，改进并没有起到什么实质性作用。内核无法理解程序中各个语句间的关联的，因此也就无法保证总会在合适的时机切换进程。不过第二个流程相对于第一个也确实降低了发生问题的概率。</p>
+<p><strong>那到底怎样都是正确的解决方法呢？后面揭晓！</strong>先熟悉一下相关的概念。</p>
+<h2 id="相关概念"><a href="#相关概念" class="headerlink" title="相关概念"></a>相关概念</h2><h3 id="竞态条件"><a href="#竞态条件" class="headerlink" title="竞态条件"></a>竞态条件</h3><p>只要多个进程同时对一个资源进行访问，就很可能互相干扰，这种干扰通常称之为<strong>竞态条件（race condition）</strong>。它通常在编码和测试过程中难以察觉。</p>
+<p>造成况态条件的根本原因在于进程在进行某些操作的时候被中断了。虽然进程再次运行时其状态会恢复如初，但是外界环境很可能已经在这极短的时间内发生了改变，上述的计数器就是例子。如果能够保证获取和更新计数器的值是一个原子操作，那竞态条件就不会发生。具体来讲就是，进程A在获取并更新计数器的值的过程不被中断，那么B就会去处理[100001, 20000]正确范围内的数据了。</p>
+<h3 id="原子操作"><a href="#原子操作" class="headerlink" title="原子操作"></a>原子操作</h3><p>执行过程中不能中断的操作叫做<strong>原子操作（atomic operation）</strong>，而只能被串行化访问或执行的某个资源或某段代码称为<strong>临界区（critical section）</strong>。例如：在第二个流程中，每个进程对计数器的读取和更新操作应该是原子操作。获取和更新计数器的值的代码共同形成一个临界区。</p>
+<blockquote>
+<p>BTW，所有的系统调用都是原子操作，我们不用担心它们的执行被中断。</p>
+</blockquote>
+<p>原子操作必须由一个单一的汇编指令表示，并且需要得到芯片级别的支持，这使得原子操作能够做到绝对的并发安全，而且比其它同步机制要快很多。</p>
+<p><strong>思考一个问题，如果一个原子操作的执行问题无法结束又无法中断它，该怎么办？</strong></p>
+<p>实际上，这也是内核只提供针对二进制位和整数的原子操作的原因。原子操作只适合细粒度的简单操作。Go是通过<code>sync/atomic</code>包中的一些函数来支持原子操作的。</p>
+<h3 id="互斥"><a href="#互斥" class="headerlink" title="互斥"></a>互斥</h3><p>相比原子操作，让串行化执行的若干代码形成的临界区的这种做法更加通用。保证只有一个进程或线程在临界区之内的做法叫做——<strong>互斥（mutual exclusion，简称mutex）</strong>。实现互斥的方法必须保证<strong>排他原则（exclusion principle）</strong>，并且这种保证不能依赖计算机硬件，也就是说互斥必须有效且通用。Go的<code>sync</code>包也包含了对互斥的支持。</p>
+<p>至此，对于同步的介绍先暂时告一段落，我还会回来的。</p>
 </section>
     <!-- Tags START -->
     
       <div class="tags">
         <span>Tags:</span>
         
-  <a href="/tags#Hexo" >
-    <span class="tag-code">Hexo</span>
+  <a href="/tags#Go" >
+    <span class="tag-code">Go</span>
+  </a>
+
+  <a href="/tags#并发编程" >
+    <span class="tag-code">并发编程</span>
   </a>
 
       </div>
@@ -211,20 +235,13 @@
   <div class="nav-container">
     <!-- reverse left and right to put prev and next in a more logic postition -->
     
-      <a class="nav-left" href="/2020/04/13/HexoToServer/">
+      <a class="nav-left" href="/2020/04/17/Go%E5%B9%B6%E5%8F%91%E7%BC%96%E7%A8%8B%EF%BC%88%E4%BA%8C%EF%BC%89%E5%A4%9A%E8%BF%9B%E7%A8%8B%E7%BC%96%E7%A8%8B/">
         <span class="nav-arrow">← </span>
         
-          如何用Hexo在云主机上搭建博客
+          Go并发编程（二） 多进程编程
         
       </a>
     
-    
-      <a class="nav-right" href="/2020/04/16/Go%E5%B9%B6%E5%8F%91%E7%BC%96%E7%A8%8B%EF%BC%88%E4%B8%80%EF%BC%89%E5%B9%B6%E5%8F%91%E7%BC%96%E7%A8%8B%E5%9F%BA%E7%A1%80/">
-        
-          Go并发编程（一） 并发编程基础
-        
-        <span class="nav-arrow"> →</span>
-      </a>
     
   </div>
 
@@ -270,7 +287,7 @@
   <div class="toc-main">
     <strong class="toc-title">Catalog</strong>
     
-      <ol class="toc-nav"><li class="toc-nav-item toc-nav-level-2"><a class="toc-nav-link" href="#注册七牛云"><span class="toc-nav-text">注册七牛云</span></a></li><li class="toc-nav-item toc-nav-level-2"><a class="toc-nav-link" href="#安装七牛云插件"><span class="toc-nav-text">安装七牛云插件</span></a></li><li class="toc-nav-item toc-nav-level-2"><a class="toc-nav-link" href="#使用插件"><span class="toc-nav-text">使用插件</span></a><ol class="toc-nav-child"><li class="toc-nav-item toc-nav-level-3"><a class="toc-nav-link" href="#同步资源"><span class="toc-nav-text">同步资源</span></a></li><li class="toc-nav-item toc-nav-level-3"><a class="toc-nav-link" href="#如何使用"><span class="toc-nav-text">如何使用</span></a></li></ol></li></ol>
+      <ol class="toc-nav"><li class="toc-nav-item toc-nav-level-2"><a class="toc-nav-link" href="#模拟同步问题"><span class="toc-nav-text">模拟同步问题</span></a><ol class="toc-nav-child"><li class="toc-nav-item toc-nav-level-3"><a class="toc-nav-link" href="#流程一"><span class="toc-nav-text">流程一</span></a></li><li class="toc-nav-item toc-nav-level-3"><a class="toc-nav-link" href="#流程二"><span class="toc-nav-text">流程二</span></a></li></ol></li><li class="toc-nav-item toc-nav-level-2"><a class="toc-nav-link" href="#相关概念"><span class="toc-nav-text">相关概念</span></a><ol class="toc-nav-child"><li class="toc-nav-item toc-nav-level-3"><a class="toc-nav-link" href="#竞态条件"><span class="toc-nav-text">竞态条件</span></a></li><li class="toc-nav-item toc-nav-level-3"><a class="toc-nav-link" href="#原子操作"><span class="toc-nav-text">原子操作</span></a></li><li class="toc-nav-item toc-nav-level-3"><a class="toc-nav-link" href="#互斥"><span class="toc-nav-text">互斥</span></a></li></ol></li></ol>
     
   </div>
 </aside>
@@ -280,7 +297,7 @@
 
 <script>
   (function () {
-    var url = 'http://zmoyi.com/2020/04/15/HexoQiniu/';
+    var url = 'http://zmoyi.com/2020/04/18/Go并发编程（三）同步问题初探/';
     var banner = ''
     if (banner !== '' && banner !== 'undefined' && banner !== 'null') {
       $('#article-banner').css({
