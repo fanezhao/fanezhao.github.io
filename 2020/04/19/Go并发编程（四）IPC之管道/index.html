@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html>
+  <head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0" name="viewport">
+  <meta name="description" content="本博客于 2020 年建站，记录了我在工作过程中学到的技术、运营及产品等知识，并以原创文章的形式分享给大家。未来仍然将坚持不懈的分享技术知识、工作经历等原创内容。 希望看到本博客的前辈多指点扶正、同行们能一起共同学习与进步、正在学习的小伙伴能通过本博客学到对自己有用的知识。">
+  <meta name="keyword" content="ZMOYI, 原创博客, Java, Golang, Linux, 全栈, 后端开发, 前端开发">
+  
+    <link rel="shortcut icon" type="image/ico" href="http://q8mr3z1u9.bkt.clouddn.com/static/images/ico.png"/>
+  
+  <title>
+    
+      Go并发编程（四）IPC之管道 | Fane&#39;Blog
+    
+  </title>
+  <link href="//cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css" rel="stylesheet">
+  <link href="//cdnjs.cloudflare.com/ajax/libs/nprogress/0.2.0/nprogress.min.css" rel="stylesheet">
+  <link href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/tomorrow.min.css" rel="stylesheet">
+  
+<link rel="stylesheet" href="/css/style.css">
+
+  
+  
+    
+<link rel="stylesheet" href="https://unpkg.com/gitalk/dist/gitalk.css">
+
+  
+  <script src="//cdnjs.cloudflare.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+  <script src="//cdnjs.cloudflare.com/ajax/libs/geopattern/1.2.3/js/geopattern.min.js"></script>
+  <script src="//cdnjs.cloudflare.com/ajax/libs/nprogress/0.2.0/nprogress.min.js"></script>
+  
+    
+<script src="/js/qrious.js"></script>
+
+  
+  
+  
+    
+<script src="https://unpkg.com/gitalk/dist/gitalk.min.js"></script>
+
+  
+  
+  
+    <!-- MathJax support START -->
+    <script type="text/x-mathjax-config">
+      MathJax.Hub.Config({
+        tex2jax: {
+          inlineMath: [ ['$','$'], ["\\(","\\)"]  ],
+          processEscapes: true,
+          skipTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
+        }
+      });
+    </script>
+
+    <script type="text/x-mathjax-config">
+      MathJax.Hub.Queue(function() {
+        var all = MathJax.Hub.getAllJax(), i;
+        for (i=0; i < all.length; i += 1) {
+          all[i].SourceElement().parentNode.className += ' has-jax';
+        }
+      });
+    </script>
+    <script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <!-- MathJax support END -->
+  
+
+
+  
+<meta name="generator" content="Hexo 4.2.0"></head>
+<div class="wechat-share">
+  <img src="/css/images/logo.png" />
+</div>
+
+  <body>
+    <header class="header fixed-header">
+  <div class="header-container">
+    <a class="home-link" href="/">
+      <div class="logo"></div>
+      <span>Fane'Blog</span>
+    </a>
+    <ul class="right-list">
+      
+        <li class="list-item">
+          
+            <a href="/" class="item-link">Home</a>
+          
+        </li>
+      
+        <li class="list-item">
+          
+            <a href="/tags/" class="item-link">Tags</a>
+          
+        </li>
+      
+        <li class="list-item">
+          
+            <a href="/archive/" class="item-link">Archives</a>
+          
+        </li>
+      
+        <li class="list-item">
+          
+            <a href="/project/" class="item-link">Projects</a>
+          
+        </li>
+      
+        <li class="list-item">
+          
+            <a href="/about/" class="item-link">About</a>
+          
+        </li>
+      
+    </ul>
+    <div class="menu">
+      <span class="icon-bar"></span>
+      <span class="icon-bar"></span>
+      <span class="icon-bar"></span>
+    </div>
+    <div class="menu-mask">
+      <ul class="menu-list">
+        
+          <li class="menu-item">
+            
+              <a href="/" class="menu-link">Home</a>
+            
+          </li>
+        
+          <li class="menu-item">
+            
+              <a href="/tags/" class="menu-link">Tags</a>
+            
+          </li>
+        
+          <li class="menu-item">
+            
+              <a href="/archive/" class="menu-link">Archives</a>
+            
+          </li>
+        
+          <li class="menu-item">
+            
+              <a href="/project/" class="menu-link">Projects</a>
+            
+          </li>
+        
+          <li class="menu-item">
+            
+              <a href="/about/" class="menu-link">About</a>
+            
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+</header>
+
+    <div id="article-banner">
+  <h2>Go并发编程（四）IPC之管道</h2>
+  <p class="post-date">2020-04-19</p>
+  <div class="arrow-down">
+    <a href="javascript:;"></a>
+  </div>
+</div>
+<main class="app-body flex-box">
+  <!-- Article START -->
+  <article class="post-article">
+    <section class="markdown-content"><blockquote>
+<p>我在<a href="https://fanezhao.github.io/2020/04/17/Go并发编程（二）多进程编程/" target="_blank" rel="noopener">多进程编程</a>那篇博客中讲到Go支持的IPC方法有管道、信号和socket。今天来看下在Go中是如何使用管道的。</p>
+</blockquote>
+<h2 id="什么是管道"><a href="#什么是管道" class="headerlink" title="什么是管道"></a>什么是管道</h2><p>管道是一种半双工（或者是单向）的通信方式，<strong>只能用于父进程与子进程或同祖先的子进程之间的通信。</strong>例如，在使用Shell命令的时候，常常就会用到管道，例如：</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">$</span><span class="bash"> ps aux | grep go</span></span><br></pre></td></tr></table></figure>
+
+<p>shell为每个命令都创建一个进程，然后把左边命令的标准输出用管道与右边命令的标准输入连接起来。管道的优点在于在于简单，而缺点则是只能单向通信以及通信双方关系上的严格限制。</p>
+<h2 id="在Go中如何使用"><a href="#在Go中如何使用" class="headerlink" title="在Go中如何使用"></a>在Go中如何使用</h2><h3 id="简单命令"><a href="#简单命令" class="headerlink" title="简单命令"></a>简单命令</h3><p>对于管道，Go中是通过<code>os/exec</code>中的API支持的，我们可以执行操作系统命令并在之上建立管道。下面创建一个exec.Cmd类型的值：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">cmd0 := exec.Command(<span class="string">"echo"</span>, <span class="string">"-n"</span>, <span class="string">"My first command comes from golang."</span>)</span><br></pre></td></tr></table></figure>
+
+<p>对应的shell命令就是：</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">$</span><span class="bash"> <span class="built_in">echo</span> -n <span class="string">"My first command comes from golang."</span></span></span><br></pre></td></tr></table></figure>
+
+<p>在exec.Cmd类型之上有个Start方法，可以用它启动命令：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">if</span> err := cmd0.Start(); err != <span class="literal">nil</span> &#123;</span><br><span class="line">  	fmt.Printf(<span class="string">"error %s\n"</span>, err)</span><br><span class="line">		<span class="keyword">return</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>此外，还要创建一个能够获取上述命令的输出管道：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">stdout0, err := cmd0.StdoutPipe()</span><br><span class="line"><span class="keyword">if</span> err != <span class="literal">nil</span> &#123;</span><br><span class="line">    fmt.Printf(<span class="string">"error %v\n"</span>, err)</span><br><span class="line">    <span class="keyword">return</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>变量<code>cmd0</code>的<code>StdoutPipe</code>方法会返回一个输出管道并赋值给<code>stdout0</code>，<code>stdout0</code>的类型是<code>io.ReadCloser</code>，它是一个扩展了<code>io.Reader</code>接口的接口类型，并定义了可关闭的数据读取行为。</p>
+<p>有了<code>stdout0</code>，启动上述命令之后，就可以通过调用它的<code>Read</code>方法来获取命令的输出了：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">output0 := <span class="built_in">make</span>([]<span class="keyword">byte</span>, <span class="number">30</span>)</span><br><span class="line">n, err := stdout0.Read(output0)</span><br><span class="line"><span class="keyword">if</span> err != <span class="literal">nil</span> &#123;</span><br><span class="line">  <span class="keyword">return</span></span><br><span class="line">&#125;</span><br><span class="line">fmt.Printf(<span class="string">"%s\n"</span>, output0[:n])</span><br></pre></td></tr></table></figure>
+
+<p>这里的<code>Read</code>方法会把读出的输出数据存入调用方法传递给它的字节切片<code>output0</code>，并返回一个<code>int</code>和<code>error</code>类型的值。如果命令的输出小于<code>output0</code>的长度，那么变量n的值会是命令实际输出的字节数量，否则n的值就等于<code>output0</code>的长度。</p>
+<p><strong>而后一种情况则说明输出管道中的数据没有被完全读出，这时就需要再次读取一次或多次，直至读完为止。</strong>在读完的时候第二个返回值会是<code>io.EOF</code>，我们可以以此判断读取情况，这里把切片的长度设置的很小，以便达到迭代读取的效果：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">var</span> outputBuf0 bytes.Buffer</span><br><span class="line"><span class="keyword">for</span> &#123;</span><br><span class="line">  tempOutput := <span class="built_in">make</span>([]<span class="keyword">byte</span>, <span class="number">5</span>)</span><br><span class="line">  n, err := output0.Read(tempOutput)</span><br><span class="line">  <span class="keyword">if</span> err != <span class="literal">nil</span> &#123;</span><br><span class="line">    <span class="keyword">if</span> err == io.EOF &#123;</span><br><span class="line">      <span class="keyword">break</span></span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">      <span class="keyword">return</span></span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line">  <span class="keyword">if</span> n &gt; <span class="number">0</span> &#123;</span><br><span class="line">    outputBuf0.Write(tempOutput[:n])</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br><span class="line">fmt.Printf(<span class="string">"%s\n"</span>, outputBuf0.String())</span><br></pre></td></tr></table></figure>
+
+<p>缓冲区<code>outputBuf0</code>用来收集每次迭代读取出来的内容。</p>
+<p>还有一个更加便捷的方式，就是使用<strong>缓冲读取器</strong>从管道中读取数据，像下面这样：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">outputBuf0 := bufio.NewReader(output0)</span><br><span class="line">output0, isPrefix, err := outputBuf0.ReadLine()</span><br><span class="line"><span class="keyword">if</span> err != <span class="literal">nil</span> &#123;</span><br><span class="line">  <span class="keyword">return</span></span><br><span class="line">&#125;</span><br><span class="line">fmt.Printf(<span class="string">"%v, %s\n"</span>, isPrefix, <span class="keyword">string</span>(output0))</span><br></pre></td></tr></table></figure>
+
+<p>由于<code>output0</code>也是<code>io.Reader</code>类型的，所以可以直接把它作为<code>bufio.NewReader</code>的参数。这个函数会返回一个<code>bufio.Reader</code>类型的值，也就是一个缓冲读取器。默认情况下，该读取器会带一个长度为4096的缓冲区，而这个缓冲区的长度就代表一次可以读取的字节的最大数量。由于<code>cmd0</code>的命令只会输出一行内容，所以可以直接用<code>outputBuf0</code>的<code>ReadLine</code>方法读取。</p>
+<p>这个方法的第二个bool类型的值代表当前行是否还未读完，如果它是false，可以像前面一样利用for循环继续读取剩余数据。不过在这里并不需要。</p>
+<p>使用缓冲读取器的好处就是可以非常灵活方便的读取需要的内容，而不是只能先把所有内容都读出来再处理。</p>
+<h3 id="复杂命令"><a href="#复杂命令" class="headerlink" title="复杂命令"></a>复杂命令</h3><p>除了上面讲的实现一些简单命令外，管道还可以实现一些复杂的命令。比如，把一个命令的输出作为另外一个命令的输入，用Go的话实现起来非常简洁。例如，下面有两个exec.Cmd类型的值：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">cmd1 := exec.Command(<span class="string">"ps"</span>, <span class="string">"aux"</span>)</span><br><span class="line">cmd2 := exec.Command(<span class="string">"grep"</span>, <span class="string">"apipe"</span>)</span><br></pre></td></tr></table></figure>
+
+<p>首先，设置<code>cmd1</code>的<code>Stdout</code>字段，然后启动<code>cmd1</code>，并等待它运行完毕：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">var</span> outputBuf1 bytes.Buffer</span><br><span class="line">cmd1.Stdout = &amp;outputBuf1</span><br><span class="line"><span class="keyword">if</span> err := cmd1.Start(); err != <span class="literal">nil</span> &#123;</span><br><span class="line">  <span class="keyword">return</span></span><br><span class="line">&#125;</span><br><span class="line"><span class="keyword">if</span> err := cmd1.Wait(); err != <span class="literal">nil</span> &#123;</span><br><span class="line">  <span class="keyword">return</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>这里使用了字节序列缓冲区<code>&amp;outputBuf1</code>来接收<code>cmd1</code>的输出，是因为<code>*bytes.Buffer</code>类型实现了<code>io.Writer</code>接口。这样，在<code>cmd1</code>命令启动的时候，所有的输出内容都可以写到<code>outputBuf1</code>中了。</p>
+<p>另外，<code>cmd1</code>的<code>Wait</code>方法会一直阻塞，直到<code>cmd1</code>命令运行结束。</p>
+<p>接下来，再设置<code>cmd2</code>的<code>Stdin</code> 和<code>Stdout</code>字段，启动<code>cmd2</code>并等待它运行完毕：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">cmd2.Stdin = &amp;outputBuf1</span><br><span class="line"><span class="keyword">var</span> outputBuf2 bytes.Buffer</span><br><span class="line">cmd2.Stdout = &amp;outputBuf2</span><br><span class="line"><span class="keyword">if</span> err := cmd2.Start(); err != <span class="literal">nil</span> &#123;</span><br><span class="line">  <span class="keyword">return</span></span><br><span class="line">&#125;</span><br><span class="line"><span class="keyword">if</span> err := cmd2.Wait(); err != <span class="literal">nil</span> &#123;</span><br><span class="line">  <span class="keyword">return</span></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">fmt.Printf(<span class="string">"%s\n"</span>, outputBuf2.String())</span><br></pre></td></tr></table></figure>
+
+<p>同样，这里由于<code>*bytes.Buffer</code>类型也实现了<code>io.Reader</code>接口，我才能把<code>&amp;outputBuf1</code>也赋值给<code>cmd2</code>的<code>Stdin</code>字段。最后，为了获得<code>cmd2</code>的输出内容，需要等它运行完毕之后再到<code>outputBuf2</code>中查看。</p>
+<p>综上，因为我们对<code>&amp;outputBuf1</code>再次赋值，将<code>cmd1</code>的输出和<code>cmd2</code>的输入串联到了一起，模拟出了操作系统的命令：</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">$</span><span class="bash"> ps -aux | grep apipe</span></span><br></pre></td></tr></table></figure>
+
+<p>需要注意的是<code>cmd2</code>的输出和直接在操作系统上运行这个命令的的输出会有所不同。因为该程序相当于在自身运行的时候又运行了上面的这个命令，这个也不难理解。</p>
+<h2 id="匿名管道和命名管道"><a href="#匿名管道和命名管道" class="headerlink" title="匿名管道和命名管道"></a>匿名管道和命名管道</h2><p>刚刚，上面所讲到的管道也可以叫作<strong>匿名管道</strong>，与此相对应的是<strong>命名管道（named pipe）</strong>。</p>
+<p>和匿名管道的区别在于，<strong>任何进程都可以通过命令管道交换数据</strong>。而匿名管道<strong>只能用于父进程与子进程或同祖先的子进程之间的通信</strong>。实际上，命令管道是以文件的形式存在于文件系统中，使用它的方法与使用文件很相似。</p>
+<p>需要注意的是，命名管道默认是阻塞式的。具体的说就是，只有在对这个命名管道的读操作和写操作都准备就绪之后，数据才开始流转。还要注意，命名管道仍然是单向的，又由于可以实现多路复用，所以有时候也需要考虑多个进程同时向命名管道写数据的情况下的操作原子性问题。</p>
+<p>在Go的标准库代码包<code>os</code>包中，包含了可以创建这种独立管道的API。例如：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">reader, writer, err := os.Pipe()</span><br></pre></td></tr></table></figure>
+
+<p>函数<code>os.Pipe</code>会返回三个函数值。</p>
+<ul>
+<li><code>reader</code>代表了该管道的输出端的<code>*os.File</code>类型的值。</li>
+<li><code>writer</code>代表了该管道的输出端的<code>*os.File</code>类型的值。</li>
+<li><code>err</code>代表可能发生的错误。若没有，则其为nil。</li>
+</ul>
+<p>Go使用系统函数来创建管道，并把它的两端封装成两个<code>os.File</code>类型的值。例如这样两段代码：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">n, err := writer.Write(input)</span><br><span class="line"><span class="keyword">if</span> err != <span class="literal">nil</span> &#123;</span><br><span class="line">  fmt.Printf(<span class="string">"Error: Couldn't write data to the named pipe: %s\n"</span>, err)</span><br><span class="line">&#125;</span><br><span class="line">fmt.Printf(<span class="string">"Written %d byte(s). [file-based pipe]\n"</span>, n)</span><br></pre></td></tr></table></figure>
+
+<p>和</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">output := <span class="built_in">make</span>([]<span class="keyword">byte</span>, <span class="number">100</span>)</span><br><span class="line">n, err := reader.Read(output)</span><br><span class="line"><span class="keyword">if</span> err != <span class="literal">nil</span> &#123;</span><br><span class="line">fmt.Printf(<span class="string">"Error: Couldn't read data from the named pipe: %s\n"</span>, err)</span><br><span class="line">&#125;</span><br><span class="line">fmt.Printf(<span class="string">"Read %d byte(s). [file-based pipe]\n"</span>, n)</span><br><span class="line">fmt.Printf(<span class="string">"%s\n"</span>, <span class="keyword">string</span>(output))</span><br></pre></td></tr></table></figure>
+
+<p>如果它们是并发运行的，那么在<code>reader</code>之上调用<code>Read</code>方法就可心按顺序获取得到之前通过调用<code>writer</code>和<code>Write</code>方法写入的数据。<strong>为什么强调是并发运行？</strong>因为命名管道默认会在其中一端还未准备就绪的时候阻塞另一端。所以如果顺序执行这两段代码，那么程序肯定会被永远阻塞在：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">n, err := writer.Write(input)</span><br></pre></td></tr></table></figure>
+
+<p>或</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">n, err := reader.Read(output)</span><br></pre></td></tr></table></figure>
+
+<p>出现的地方。具体阻塞在哪取决于两个表达式<code>writer.Write(input)</code>和<code>reader.Read(output)</code>哪一个先被求值。</p>
+<p>另外，因为管道都是单向的，所以虽然<code>reader</code>和<code>writer</code>都是<code>*os.File</code>类型的，但是却不能调用<code>reader</code>的那些写方法或<code>writer</code>的那些读方法，否则就会得到非<code>nil</code>的错误值，会被告知这样是不允许的。</p>
+<p>由于通过<code>os.Pipe</code>函数生成的管道在底层是由系统级别的管道来支持，所以使用的时候要注意操作系统对管道的限制。例如，匿名管道会在管道缓冲区写满之后阻塞写进程。以及命名管道会在其中一端未就绪的情况下阻塞另一端的进程，等等。</p>
+<p>再次强调，命名管道可以被多路复用。所以，当有多个输入端同时写入数据时，就不得不考虑操作原子性的问题。</p>
+<h2 id="原子性操作的管道"><a href="#原子性操作的管道" class="headerlink" title="原子性操作的管道"></a>原子性操作的管道</h2><p>前面我们说操作系统提供的管道是不支持原子操作的。为此Go在<code>io</code>包中提供了一个基于内存的有原子操作保证的管道，简称<strong>内存管道</strong>。</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">reader, writer := io.Pipe()</span><br></pre></td></tr></table></figure>
+
+<p>函数<code>io.Pipe</code>有两个返回值：</p>
+<ul>
+<li><code>reader</code>代表了该管道输出端的<code>*io.PipeReader</code>类型的值。</li>
+<li><code>writer</code>代表了该管道输出端的<code>*io.PipeWriter</code>类型的值。</li>
+</ul>
+<p>这两个类型的值分别对管道的输入和输出端做了很好的限制，可以避免我们对管道的反向使用。还有，在使用<code>Close</code>方法关闭管道的某一端之后，另一端会得到 一个预定义的<code>error</code>类型的错误值。我们还可以通过调用<code>CloseWithError</code>来自定义这种错误。</p>
+<p>另外，还需要注意的是，跟<code>os.Pipe</code>函数生成的管道一样的是，我们仍需要并发执行分别对内存管道两端进行操作的那两块代码。</p>
+<p><strong>内存管道的高效</strong></p>
+<p>在内存管道内部，充分利用了<code>sync</code>代码包中的API，并以此从根本上保证了相关操作的原子性，所以我们可以放心的并发的使用它。另外，由于这种管道不是基于文件系统的，并没有作为中介的缓冲区，所以通过它传递的数据只会被复制一次。这也就更进一步提高了数据传输效率。</p>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>本篇介绍系统级别的匿名管道和命名管道的概念和基本用法，以及Go标准库中与它们对应的API。另外，还简单说明了Go特别提供的一种基于内存的同步管道的使用方法。</p>
+<p>上面示例代码可以参考我的Github<a href="https://github.com/fanezhao/GoConcurrent/tree/master/chapter3" target="_blank" rel="noopener">管道部分的代码</a>。</p>
+</section>
+    <!-- Tags START -->
+    
+      <div class="tags">
+        <span>Tags:</span>
+        
+  <a href="/tags#Go" >
+    <span class="tag-code">Go</span>
+  </a>
+
+      </div>
+    
+    <!-- Tags END -->
+    <!-- NAV START -->
+    
+  <div class="nav-container">
+    <!-- reverse left and right to put prev and next in a more logic postition -->
+    
+      <a class="nav-left" href="/2020/04/18/Go%E5%B9%B6%E5%8F%91%E7%BC%96%E7%A8%8B%EF%BC%88%E4%B8%89%EF%BC%89%E5%B9%B6%E5%8F%91%E5%90%8C%E6%AD%A5%E5%88%9D%E6%8E%A2/">
+        <span class="nav-arrow">← </span>
+        
+          Go并发编程（三）并发同步初探
+        
+      </a>
+    
+    
+  </div>
+
+    <!-- NAV END -->
+    <!-- 打赏 START -->
+    
+      <div class="money-like">
+        <div class="reward-btn">
+          赏
+          <span class="money-code">
+            <span class="alipay-code">
+              <div class="code-image"></div>
+              <b>使用支付宝打赏</b>
+            </span>
+            <span class="wechat-code">
+              <div class="code-image"></div>
+              <b>使用微信打赏</b>
+            </span>
+          </span>
+        </div>
+        <p class="notice">若你觉得我的文章对你有帮助，欢迎点击上方按钮对我打赏</p>
+      </div>
+    
+    <!-- 打赏 END -->
+    <!-- 二维码 START -->
+    
+      <div class="qrcode">
+        <canvas id="share-qrcode"></canvas>
+        <p class="notice">扫描二维码，分享此文章</p>
+      </div>
+    
+    <!-- 二维码 END -->
+    
+      <!-- Gitalk START -->
+      <div id="gitalk-container"></div>
+      <!-- Gitalk END -->
+    
+  </article>
+  <!-- Article END -->
+  <!-- Catalog START -->
+  
+    <aside class="catalog-container">
+  <div class="toc-main">
+    <strong class="toc-title">Catalog</strong>
+    
+      <ol class="toc-nav"><li class="toc-nav-item toc-nav-level-2"><a class="toc-nav-link" href="#什么是管道"><span class="toc-nav-text">什么是管道</span></a></li><li class="toc-nav-item toc-nav-level-2"><a class="toc-nav-link" href="#在Go中如何使用"><span class="toc-nav-text">在Go中如何使用</span></a><ol class="toc-nav-child"><li class="toc-nav-item toc-nav-level-3"><a class="toc-nav-link" href="#简单命令"><span class="toc-nav-text">简单命令</span></a></li><li class="toc-nav-item toc-nav-level-3"><a class="toc-nav-link" href="#复杂命令"><span class="toc-nav-text">复杂命令</span></a></li></ol></li><li class="toc-nav-item toc-nav-level-2"><a class="toc-nav-link" href="#匿名管道和命名管道"><span class="toc-nav-text">匿名管道和命名管道</span></a></li><li class="toc-nav-item toc-nav-level-2"><a class="toc-nav-link" href="#原子性操作的管道"><span class="toc-nav-text">原子性操作的管道</span></a></li><li class="toc-nav-item toc-nav-level-2"><a class="toc-nav-link" href="#总结"><span class="toc-nav-text">总结</span></a></li></ol>
+    
+  </div>
+</aside>
+  
+  <!-- Catalog END -->
+</main>
+
+<script>
+  (function () {
+    var url = 'http://zmoyi.com/2020/04/19/Go并发编程（四）IPC之管道/';
+    var banner = ''
+    if (banner !== '' && banner !== 'undefined' && banner !== 'null') {
+      $('#article-banner').css({
+        'background-image': 'url(' + banner + ')'
+      })
+    } else {
+      $('#article-banner').geopattern(url)
+    }
+    $('.header').removeClass('fixed-header')
+
+    // error image
+    $(".markdown-content img").on('error', function() {
+      $(this).attr('src', 'http://file.muyutech.com/error-img.png')
+      $(this).css({
+        'cursor': 'default'
+      })
+    })
+
+    // zoom image
+    $(".markdown-content img").on('click', function() {
+      var src = $(this).attr('src')
+      if (src !== 'http://file.muyutech.com/error-img.png') {
+        var imageW = $(this).width()
+        var imageH = $(this).height()
+
+        var zoom = ($(window).width() * 0.95 / imageW).toFixed(2)
+        zoom = zoom < 1 ? 1 : zoom
+        zoom = zoom > 2 ? 2 : zoom
+        var transY = (($(window).height() - imageH) / 2).toFixed(2)
+
+        $('body').append('<div class="image-view-wrap"><div class="image-view-inner"><img src="'+ src +'" /></div></div>')
+        $('.image-view-wrap').addClass('wrap-active')
+        $('.image-view-wrap img').css({
+          'width': `${imageW}`,
+          'transform': `translate3d(0, ${transY}px, 0) scale3d(${zoom}, ${zoom}, 1)`
+        })
+        $('html').css('overflow', 'hidden')
+
+        $('.image-view-wrap').on('click', function() {
+          $(this).remove()
+          $('html').attr('style', '')
+        })
+      }
+    })
+  })();
+</script>
+
+
+  <script>
+    var qr = new QRious({
+      element: document.getElementById('share-qrcode'),
+      value: document.location.href
+    });
+  </script>
+
+
+
+
+
+  <script type="text/javascript">
+    var gitalk = new Gitalk({
+      clientID: '595f268d984e0123456f',
+      clientSecret: 'e4c1799bc7a82448653f758927992c6217beb7cb',
+      id: window.location.pathname,
+      repo: 'fanezhao.github.io',
+      owner: 'fanezhao',
+      admin: 'fanezhao'
+    })
+    gitalk.render('gitalk-container')
+  </script>
+
+
+
+
+    <div class="scroll-top">
+  <span class="arrow-icon"></span>
+</div>
+    <footer class="app-footer">
+  <p class="copyright">
+    &copy;2020 by <a href="https://github.com/fanezhao" target="_blank" rel="noopener">fanezhao</a>
+    <br>
+    PV: <span id="busuanzi_value_site_pv"></span> |
+    UV: <span id="busuanzi_value_site_uv"></span> |
+    PPV: <span id="busuanzi_value_page_pv"></span>
+  </p>
+</footer>
+
+<script>
+  function async(u, c) {
+    var d = document, t = 'script',
+      o = d.createElement(t),
+      s = d.getElementsByTagName(t)[0];
+    o.src = u;
+    if (c) { o.addEventListener('load', function (e) { c(null, e); }, false); }
+    s.parentNode.insertBefore(o, s);
+  }
+</script>
+<script>
+  async("//cdnjs.cloudflare.com/ajax/libs/fastclick/1.0.6/fastclick.min.js", function(){
+    FastClick.attach(document.body);
+  })
+</script>
+
+<script>
+  var hasLine = 'true';
+  async("//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/highlight.min.js", function(){
+    $('figure pre').each(function(i, block) {
+      var figure = $(this).parents('figure');
+      if (hasLine === 'false') {
+        figure.find('.gutter').hide();
+      }
+      var lang = figure.attr('class').split(' ')[1] || 'code';
+      var codeHtml = $(this).html();
+      var codeTag = document.createElement('code');
+      codeTag.className = lang;
+      codeTag.innerHTML = codeHtml;
+      $(this).attr('class', '').empty().html(codeTag);
+      figure.attr('data-lang', lang.toUpperCase());
+      hljs.highlightBlock(block);
+    });
+  })
+</script>
+<!-- Baidu Tongji -->
+
+<script>
+    var _baId = 'bf809fdb4f2243c687ead4f074335c7c';
+    // Originial
+    var _hmt = _hmt || [];
+    (function() {
+      var hm = document.createElement("script");
+      hm.src = "//hm.baidu.com/hm.js?" + _baId;
+      var s = document.getElementsByTagName("script")[0];
+      s.parentNode.insertBefore(hm, s);
+    })();
+</script>
+
+<!-- busuanzi -->
+<script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+
+<script src="/js/script.js"></script>
+
+  </body>
+</html>
