@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html>
+  <head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0" name="viewport">
+  <meta name="description" content="本博客于 2020 年建站，记录了我在工作过程中学到的技术、运营及产品等知识，并以原创文章的形式分享给大家。未来仍然将坚持不懈的分享技术知识、工作经历等原创内容。 希望看到本博客的前辈多指点扶正、同行们能一起共同学习与进步、正在学习的小伙伴能通过本博客学到对自己有用的知识。">
+  <meta name="keyword" content="ZMOYI, 原创博客, Java, Golang, Linux, 全栈, 后端开发, 前端开发">
+  
+    <link rel="shortcut icon" type="image/ico" href="http://q8mr3z1u9.bkt.clouddn.com/static/images/ico.png"/>
+  
+  <title>
+    
+      Go并发编程（五）IPC之信号 | Fane&#39;Blog
+    
+  </title>
+  <link href="//cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css" rel="stylesheet">
+  <link href="//cdnjs.cloudflare.com/ajax/libs/nprogress/0.2.0/nprogress.min.css" rel="stylesheet">
+  <link href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/tomorrow.min.css" rel="stylesheet">
+  
+<link rel="stylesheet" href="/css/style.css">
+
+  
+  
+    
+<link rel="stylesheet" href="https://unpkg.com/gitalk/dist/gitalk.css">
+
+  
+  <script src="//cdnjs.cloudflare.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+  <script src="//cdnjs.cloudflare.com/ajax/libs/geopattern/1.2.3/js/geopattern.min.js"></script>
+  <script src="//cdnjs.cloudflare.com/ajax/libs/nprogress/0.2.0/nprogress.min.js"></script>
+  
+    
+<script src="/js/qrious.js"></script>
+
+  
+  
+  
+    
+<script src="https://unpkg.com/gitalk/dist/gitalk.min.js"></script>
+
+  
+  
+  
+    <!-- MathJax support START -->
+    <script type="text/x-mathjax-config">
+      MathJax.Hub.Config({
+        tex2jax: {
+          inlineMath: [ ['$','$'], ["\\(","\\)"]  ],
+          processEscapes: true,
+          skipTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
+        }
+      });
+    </script>
+
+    <script type="text/x-mathjax-config">
+      MathJax.Hub.Queue(function() {
+        var all = MathJax.Hub.getAllJax(), i;
+        for (i=0; i < all.length; i += 1) {
+          all[i].SourceElement().parentNode.className += ' has-jax';
+        }
+      });
+    </script>
+    <script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <!-- MathJax support END -->
+  
+
+
+  
+<meta name="generator" content="Hexo 4.2.0"></head>
+<div class="wechat-share">
+  <img src="/css/images/logo.png" />
+</div>
+
+  <body>
+    <header class="header fixed-header">
+  <div class="header-container">
+    <a class="home-link" href="/">
+      <div class="logo"></div>
+      <span>Fane'Blog</span>
+    </a>
+    <ul class="right-list">
+      
+        <li class="list-item">
+          
+            <a href="/" class="item-link">Home</a>
+          
+        </li>
+      
+        <li class="list-item">
+          
+            <a href="/tags/" class="item-link">Tags</a>
+          
+        </li>
+      
+        <li class="list-item">
+          
+            <a href="/archive/" class="item-link">Archives</a>
+          
+        </li>
+      
+        <li class="list-item">
+          
+            <a href="/project/" class="item-link">Projects</a>
+          
+        </li>
+      
+        <li class="list-item">
+          
+            <a href="/about/" class="item-link">About</a>
+          
+        </li>
+      
+    </ul>
+    <div class="menu">
+      <span class="icon-bar"></span>
+      <span class="icon-bar"></span>
+      <span class="icon-bar"></span>
+    </div>
+    <div class="menu-mask">
+      <ul class="menu-list">
+        
+          <li class="menu-item">
+            
+              <a href="/" class="menu-link">Home</a>
+            
+          </li>
+        
+          <li class="menu-item">
+            
+              <a href="/tags/" class="menu-link">Tags</a>
+            
+          </li>
+        
+          <li class="menu-item">
+            
+              <a href="/archive/" class="menu-link">Archives</a>
+            
+          </li>
+        
+          <li class="menu-item">
+            
+              <a href="/project/" class="menu-link">Projects</a>
+            
+          </li>
+        
+          <li class="menu-item">
+            
+              <a href="/about/" class="menu-link">About</a>
+            
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+</header>
+
+    <div id="article-banner">
+  <h2>Go并发编程（五）IPC之信号</h2>
+  <p class="post-date">2020-04-22</p>
+  <div class="arrow-down">
+    <a href="javascript:;"></a>
+  </div>
+</div>
+<main class="app-body flex-box">
+  <!-- Article START -->
+  <article class="post-article">
+    <section class="markdown-content"><blockquote>
+<p>我在<a href="http://zmoyi.com/2020/04/17/Go%E5%B9%B6%E5%8F%91%E7%BC%96%E7%A8%8B%EF%BC%88%E4%BA%8C%EF%BC%89%E5%A4%9A%E8%BF%9B%E7%A8%8B%E7%BC%96%E7%A8%8B/">多进程编程</a>那篇博客中讲到Go支持的IPC方法有管道、信号和socket。今天来看下在Go中是如何使用信号的。</p>
+</blockquote>
+<h2 id="什么是信号"><a href="#什么是信号" class="headerlink" title="什么是信号"></a>什么是信号</h2><p>操作系统信号（signal）是IPC方法中唯一一种异步的通信方法，它的本质是用软件来模拟硬件的中断机制。信号用来通知某个进程有某个事情发生了。</p>
+<p>例如，在命令行终端按下某些快捷键，就会挂起或停止正在运行的程序；或者通过<code>kill</code>命令杀死某个进程的操作也有信号参与。</p>
+<p>每个信号都是一个以“SIG”为前缀的名字，例如SIGINT、SIGQUIT以及SIGKILL等。但其实，在操作系统内部，信号是由下正整数表示的，这些正整数称为<strong>信号编号</strong>。在Linux在可以通过<code>kill</code>命令查看当前系统所支持的信号：</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">$</span><span class="bash"> <span class="built_in">kill</span> -l</span></span><br><span class="line"> 1) SIGHUP	 2) SIGINT	 3) SIGQUIT	 4) SIGILL	 5) SIGTRAP</span><br><span class="line"> 6) SIGABRT	 7) SIGBUS	 8) SIGFPE	 9) SIGKILL	10) SIGUSR1</span><br><span class="line">11) SIGSEGV	12) SIGUSR2	13) SIGPIPE	14) SIGALRM	15) SIGTERM</span><br><span class="line">16) SIGSTKFLT	17) SIGCHLD	18) SIGCONT	19) SIGSTOP	20) SIGTSTP</span><br><span class="line">21) SIGTTIN	22) SIGTTOU	23) SIGURG	24) SIGXCPU	25) SIGXFSZ</span><br><span class="line">26) SIGVTALRM	27) SIGPROF	28) SIGWINCH	29) SIGIO	30) SIGPWR</span><br><span class="line">31) SIGSYS	34) SIGRTMIN	35) SIGRTMIN+1	36) SIGRTMIN+2	37) SIGRTMIN+3</span><br><span class="line">38) SIGRTMIN+4	39) SIGRTMIN+5	40) SIGRTMIN+6	41) SIGRTMIN+7	42) SIGRTMIN+8</span><br><span class="line">43) SIGRTMIN+9	44) SIGRTMIN+10	45) SIGRTMIN+11	46) SIGRTMIN+12	47) SIGRTMIN+13</span><br><span class="line">48) SIGRTMIN+14	49) SIGRTMIN+15	50) SIGRTMAX-14	51) SIGRTMAX-13	52) SIGRTMAX-12</span><br><span class="line">53) SIGRTMAX-11	54) SIGRTMAX-10	55) SIGRTMAX-9	56) SIGRTMAX-8	57) SIGRTMAX-7</span><br><span class="line">58) SIGRTMAX-6	59) SIGRTMAX-5	60) SIGRTMAX-4	61) SIGRTMAX-3	62) SIGRTMAX-2</span><br><span class="line">63) SIGRTMAX-1	64) SIGRTMAX</span><br></pre></td></tr></table></figure>
+
+<p>可以看到，Linux支持的信号有62种（编号32和33的信号为空）。</p>
+<h3 id="标准信号和实时信号"><a href="#标准信号和实时信号" class="headerlink" title="标准信号和实时信号"></a>标准信号和实时信号</h3><ul>
+<li>标准信号：编号1到32的信号属于标准信号（也叫不可靠信号）。</li>
+<li>实时信号：编号34到64的信号属于实时信号（也叫可靠信号）。</li>
+</ul>
+<p>标准信号存在两个问题：</p>
+<ul>
+<li>1、对于同一个进程来说，每种标准信号只会被记录并处理一次。</li>
+<li>2、如果发送给某一个进程的标准信号的各类有多个，那么它们的处理顺序是不确定的。</li>
+</ul>
+<p>实时信号解决了标准信号上述的两个问题，即多个同种类的实时信号都可以记录在案，并且可以按照信号的发送顺序被处理。虽然实时信号在功能上更加强大，但是已经成为事实标准的标准信号也没法被替换了，所以两者一直共存着了。</p>
+<p>简单来说，信号的来源有键盘输入（比如Ctrl+c）、硬件故障、系统函数调用和软件中的非法运算。进程响应信号的方式有三种：<strong>忽略、捕捉和执行默认操作。</strong></p>
+<p>Linux对第一个标准信号都默认的操作方式。针对不同各类的标准信号其默认的操作方式一定是下列操作之一：<strong>终止进程、忽略该信号、终止进程并保存内存信息、停止进程、恢复进程（若进程已停止）。</strong></p>
+<h2 id="使用Go中开发处理信号程序"><a href="#使用Go中开发处理信号程序" class="headerlink" title="使用Go中开发处理信号程序"></a>使用Go中开发处理信号程序</h2><h3 id="自定义信号处理"><a href="#自定义信号处理" class="headerlink" title="自定义信号处理"></a>自定义信号处理</h3><p>对于绝大多数标准信号而言，我们可以自定义程序对它的响应方式。更具体的讲，进程要告知操作系统内核：当某种信号到来时，需要执行某种操作。在程序中，这些自定义的信号响应方式往往由函数表示。</p>
+<p>Go命令会对其中的一些以键盘输入为来源的标准信号做出响应，这是通过<code>os/signal</code>中的一些API来实现的。下面就从接口类型<code>os.Signal</code>开始讲起：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">type</span> Signal <span class="keyword">interface</span> &#123;</span><br><span class="line">	String() <span class="keyword">string</span></span><br><span class="line">	Signal() <span class="comment">// to distinguish from other Stringers</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p><code>其中Signal</code>方法的声明没有实际意义，它只是作为<code>os.Signal</code>接口的一个标识。在Go的标准库中，所以实现它的类型的<code>Signal</code>都是空方法。所有实现此接口类型的值都可以表示成一个操作系统信号。</p>
+<p>另外，查看<code>syscall.Signal</code>类型的<code>String</code>方法的源码，会发现在其中有一个数组类型的私有变量<code>signals</code>。它的每个索引值都代表了一个标准信号的编号，而对应的元素则是针对该信号的一个简短描述。</p>
+<p>代码包<code>os/signal</code>跌<code>Notify</code>函数用来当操作系统向当前进程发送指定信号时发出通知。</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">Notify</span><span class="params">(c <span class="keyword">chan</span>&lt;- os.Signal, sig ...os.Signal)</span></span></span><br></pre></td></tr></table></figure>
+
+<ul>
+<li><p>第一个参数是通道类型的。在<code>Notify</code>函数中，只能向它发送<code>os.Signal</code>类型的值（以下简称信号值），而不能从中获取信号值。<code>Notify</code>函数会把当前进程接收到的信号放入这个通道（以下简称<code>signal</code>接收通道）中，这样该函数的调用方就可以从这个<code>signal</code>接收通道中按顺序获取操作系统发来的信号并进程相应的处理了。</p>
+</li>
+<li><p>第二个参数是可变长的参数，它代表的参数值包含我们希望自行处理的所有信号。接收到需要自行处理的信号之后，<code>os.Signal</code>中程序会把它封装成<code>os.Signal</code>类型的值并放入到<code>signal</code>接收通道中。</p>
+</li>
+</ul>
+<p>我们可以只为第一个参数绑定实际值，在这种情况下，<code>signal</code>处理程序会理解为我们想要自行处理所有信号，并把接收到的几乎所有信号全部封装到<code>signal</code>接收通道中。举个粟子：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">sigRecv := <span class="built_in">make</span>(<span class="keyword">chan</span> os.Signal, <span class="number">1</span>)</span><br><span class="line">sigs := []os.Signal&#123;syscall.SIGINT, syscall.SIGQUIT&#125;</span><br><span class="line">signal.Notify(sigRecv, sigs...)</span><br><span class="line"><span class="comment">// 永远都不会停止</span></span><br><span class="line"><span class="keyword">for</span> sig := <span class="keyword">range</span> sigRecv &#123;</span><br><span class="line">  <span class="comment">// 接收到信号不做任何处理，直接输出，相当于忽略信号，因此永远不会停止，除非kill掉</span></span><br><span class="line">  fmt.Printf(<span class="string">"%s\n"</span>, sig)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>在这个程序中，我们希望自行处理<code>SIGINT</code>和<code>SIGQUIT</code>信号。所以，<code>sigs</code>包含了<code>syscall.SIGINT</code>和<code>syscall.SIGQUIT</code>。然后，从<code>signal</code>接收通道中接收信号值，并做打印处理。</p>
+<p>在实际场景中，上述的做法是比较危险的，因为我们忽略了当前进程本譔处理的信号。如果当前进程接收到了未自定义处理方法的信号，就会执行由操作系统指定的默认操作。因此如果指定的自定义处理方法只是打印一些内容，就相当于使当前进程忽略掉相应的信号。这也就是如果我们使用<code>Ctrl+c</code>无法停掉上面的程序而只会在控制台打印的原因。</p>
+<p>如果上述代码改成这样：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">sigRecv := <span class="built_in">make</span>(<span class="keyword">chan</span> os.Signal, <span class="number">1</span>)</span><br><span class="line">signal.Notify(sigRecv)</span><br><span class="line"><span class="keyword">for</span> sig := <span class="keyword">range</span> sigRecv &#123;</span><br><span class="line">  fmt.Printf(<span class="string">"%s\n"</span>, sig)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>这段程序表示该进程会忽略掉所有信号，这样导致的后果会很悲剧，我们也无法通过<code>Ctrl+c</code>停止程序。</p>
+<p>不过，还好在类Unix操作系统下在<code>SIGKILL</code>和<code>SIGSTOP</code>两种信号既不能自行处理，也不会被忽略，对它们的响应只能是执行系统的默认操作。这种策略的根本原因是：<strong>它们向系统的超级用户提供了使进程终止或停止的可靠方法。</strong>即使我们在程序中调用：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">signal.Notify(sigRecv, syscall.SIGKILL, syscall.SIGSTOP)</span><br></pre></td></tr></table></figure>
+
+<p>也不会改变当前进程对<code>SIGKILL</code>和<code>SIGSTOP</code>两种信号的处理动作。这也是我们无法通过<code>Ctrl+c</code>而可以通过<code>kill</code>命令停止上述程序的原因。</p>
+<h3 id="恢复系统默认信号处理"><a href="#恢复系统默认信号处理" class="headerlink" title="恢复系统默认信号处理"></a>恢复系统默认信号处理</h3><p>对于除<code>SIGKILL</code>和<code>SIGSTOP</code>两种外，除了能够自行处理它们之外，还可以在之后的任意时刻恢复对它们的系统默认操作。这需要用到<code>os/signal</code>包中的<code>Stop</code>函数：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">Stop</span><span class="params">(c <span class="keyword">chan</span> &lt;- os.Signal)</span></span></span><br></pre></td></tr></table></figure>
+
+<p>其中只有一个参数声明，并且和<code>signal.Notify</code>函数的第一个参数声明完全一致。这并不是巧合，而是有意为之。</p>
+<p>只有把当初传递给<code>signal.Notify</code>函数的那个<code>signal</code>接收通道作为调用<code>signal.Stop</code>函数的参数值，才能如愿以偿的取消掉之前的行为，否则调用<code>signal.Stop</code>不会起到任何作用。</p>
+<p>调用完<code>signal.Stop</code>函数之后，作为其参数的<code>signal</code>接收通道将不会再被发送任何信号。这时，会在之前第一段代码的从<code>signal</code>接收通道中接收信号值的for语句会一起被阻塞。不过我们可以在调用<code>signal.Stop</code>之后使用内建函数<code>close</code>关闭它：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">signal.Stop(sigRecv)</span><br><span class="line"><span class="built_in">close</span>(sigRecv)</span><br></pre></td></tr></table></figure>
+
+<p>在很多时候，我们并不想完全取消掉自行信号处理信号的行为，而只是想取消一部分。为此，我们只需要再次调用<code>signal.Notify</code>函数，并重新设定其第二个可变参数值即可。不过要保证作为第一个参数的<code>signal</code>接收通道相同。</p>
+<p><strong>问题：如果<code>signal</code>接收通道不同，会怎样？</strong></p>
+<p>如果我们先后调用了两次<code>signal.Notify</code>函数，但两次传递给该函数的<code>signal</code>接收通道不同，那么<code>signal</code>处理程序会将这两次调用视为毫不相干。</p>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>这篇文章，我们学习信号的一些基础概念，还有在Go中如何对信号进行自定义处理，以及如何恢复部分信号为系统默认处理等知识。本篇文章中的但到参考代码并不算多，但在我的Github上有一个<a href="https://github.com/fanezhao/GoConcurrent/tree/master/chapter3/signal" target="_blank" rel="noopener">完整示例</a>可供参考。</p>
+</section>
+    <!-- Tags START -->
+    
+      <div class="tags">
+        <span>Tags:</span>
+        
+  <a href="/tags#Go" >
+    <span class="tag-code">Go</span>
+  </a>
+
+      </div>
+    
+    <!-- Tags END -->
+    <!-- NAV START -->
+    
+  <div class="nav-container">
+    <!-- reverse left and right to put prev and next in a more logic postition -->
+    
+      <a class="nav-left" href="/2020/04/19/Go%E5%B9%B6%E5%8F%91%E7%BC%96%E7%A8%8B%EF%BC%88%E5%9B%9B%EF%BC%89IPC%E4%B9%8B%E7%AE%A1%E9%81%93/">
+        <span class="nav-arrow">← </span>
+        
+          Go并发编程（四）IPC之管道
+        
+      </a>
+    
+    
+  </div>
+
+    <!-- NAV END -->
+    <!-- 打赏 START -->
+    
+      <div class="money-like">
+        <div class="reward-btn">
+          赏
+          <span class="money-code">
+            <span class="alipay-code">
+              <div class="code-image"></div>
+              <b>使用支付宝打赏</b>
+            </span>
+            <span class="wechat-code">
+              <div class="code-image"></div>
+              <b>使用微信打赏</b>
+            </span>
+          </span>
+        </div>
+        <p class="notice">若你觉得我的文章对你有帮助，欢迎点击上方按钮对我打赏</p>
+      </div>
+    
+    <!-- 打赏 END -->
+    <!-- 二维码 START -->
+    
+      <div class="qrcode">
+        <canvas id="share-qrcode"></canvas>
+        <p class="notice">扫描二维码，分享此文章</p>
+      </div>
+    
+    <!-- 二维码 END -->
+    
+      <!-- Gitalk START -->
+      <div id="gitalk-container"></div>
+      <!-- Gitalk END -->
+    
+  </article>
+  <!-- Article END -->
+  <!-- Catalog START -->
+  
+    <aside class="catalog-container">
+  <div class="toc-main">
+    <strong class="toc-title">Catalog</strong>
+    
+      <ol class="toc-nav"><li class="toc-nav-item toc-nav-level-2"><a class="toc-nav-link" href="#什么是信号"><span class="toc-nav-text">什么是信号</span></a><ol class="toc-nav-child"><li class="toc-nav-item toc-nav-level-3"><a class="toc-nav-link" href="#标准信号和实时信号"><span class="toc-nav-text">标准信号和实时信号</span></a></li></ol></li><li class="toc-nav-item toc-nav-level-2"><a class="toc-nav-link" href="#使用Go中开发处理信号程序"><span class="toc-nav-text">使用Go中开发处理信号程序</span></a><ol class="toc-nav-child"><li class="toc-nav-item toc-nav-level-3"><a class="toc-nav-link" href="#自定义信号处理"><span class="toc-nav-text">自定义信号处理</span></a></li><li class="toc-nav-item toc-nav-level-3"><a class="toc-nav-link" href="#恢复系统默认信号处理"><span class="toc-nav-text">恢复系统默认信号处理</span></a></li></ol></li><li class="toc-nav-item toc-nav-level-2"><a class="toc-nav-link" href="#总结"><span class="toc-nav-text">总结</span></a></li></ol>
+    
+  </div>
+</aside>
+  
+  <!-- Catalog END -->
+</main>
+
+<script>
+  (function () {
+    var url = 'http://zmoyi.com/2020/04/22/Go并发编程（五）IPC之信号/';
+    var banner = ''
+    if (banner !== '' && banner !== 'undefined' && banner !== 'null') {
+      $('#article-banner').css({
+        'background-image': 'url(' + banner + ')'
+      })
+    } else {
+      $('#article-banner').geopattern(url)
+    }
+    $('.header').removeClass('fixed-header')
+
+    // error image
+    $(".markdown-content img").on('error', function() {
+      $(this).attr('src', 'http://file.muyutech.com/error-img.png')
+      $(this).css({
+        'cursor': 'default'
+      })
+    })
+
+    // zoom image
+    $(".markdown-content img").on('click', function() {
+      var src = $(this).attr('src')
+      if (src !== 'http://file.muyutech.com/error-img.png') {
+        var imageW = $(this).width()
+        var imageH = $(this).height()
+
+        var zoom = ($(window).width() * 0.95 / imageW).toFixed(2)
+        zoom = zoom < 1 ? 1 : zoom
+        zoom = zoom > 2 ? 2 : zoom
+        var transY = (($(window).height() - imageH) / 2).toFixed(2)
+
+        $('body').append('<div class="image-view-wrap"><div class="image-view-inner"><img src="'+ src +'" /></div></div>')
+        $('.image-view-wrap').addClass('wrap-active')
+        $('.image-view-wrap img').css({
+          'width': `${imageW}`,
+          'transform': `translate3d(0, ${transY}px, 0) scale3d(${zoom}, ${zoom}, 1)`
+        })
+        $('html').css('overflow', 'hidden')
+
+        $('.image-view-wrap').on('click', function() {
+          $(this).remove()
+          $('html').attr('style', '')
+        })
+      }
+    })
+  })();
+</script>
+
+
+  <script>
+    var qr = new QRious({
+      element: document.getElementById('share-qrcode'),
+      value: document.location.href
+    });
+  </script>
+
+
+
+
+
+  <script type="text/javascript">
+    var gitalk = new Gitalk({
+      clientID: '595f268d984e0123456f',
+      clientSecret: 'e4c1799bc7a82448653f758927992c6217beb7cb',
+      id: window.location.pathname,
+      repo: 'fanezhao.github.io',
+      owner: 'fanezhao',
+      admin: 'fanezhao'
+    })
+    gitalk.render('gitalk-container')
+  </script>
+
+
+
+
+    <div class="scroll-top">
+  <span class="arrow-icon"></span>
+</div>
+    <footer class="app-footer">
+  <p class="copyright">
+    &copy;2020 <a href="https://github.com/fanezhao" target="_blank" rel="noopener">Fane</a><span> | 浙ICP备20012854号</span>
+    <br>
+    PV: <span id="busuanzi_value_site_pv"></span> |
+    UV: <span id="busuanzi_value_site_uv"></span> |
+    PPV: <span id="busuanzi_value_page_pv"></span>
+  </p>
+</footer>
+
+<script>
+  function async(u, c) {
+    var d = document, t = 'script',
+      o = d.createElement(t),
+      s = d.getElementsByTagName(t)[0];
+    o.src = u;
+    if (c) { o.addEventListener('load', function (e) { c(null, e); }, false); }
+    s.parentNode.insertBefore(o, s);
+  }
+</script>
+<script>
+  async("//cdnjs.cloudflare.com/ajax/libs/fastclick/1.0.6/fastclick.min.js", function(){
+    FastClick.attach(document.body);
+  })
+</script>
+
+<script>
+  var hasLine = 'true';
+  async("//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/highlight.min.js", function(){
+    $('figure pre').each(function(i, block) {
+      var figure = $(this).parents('figure');
+      if (hasLine === 'false') {
+        figure.find('.gutter').hide();
+      }
+      var lang = figure.attr('class').split(' ')[1] || 'code';
+      var codeHtml = $(this).html();
+      var codeTag = document.createElement('code');
+      codeTag.className = lang;
+      codeTag.innerHTML = codeHtml;
+      $(this).attr('class', '').empty().html(codeTag);
+      figure.attr('data-lang', lang.toUpperCase());
+      hljs.highlightBlock(block);
+    });
+  })
+</script>
+<!-- Baidu Tongji -->
+
+<script>
+    var _baId = '1da5032819b12da8d4c1fb82c6f21ffa';
+    // Originial
+    var _hmt = _hmt || [];
+    (function() {
+      var hm = document.createElement("script");
+      hm.src = "//hm.baidu.com/hm.js?" + _baId;
+      var s = document.getElementsByTagName("script")[0];
+      s.parentNode.insertBefore(hm, s);
+    })();
+</script>
+
+<!-- busuanzi -->
+<script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+
+<script src="/js/script.js"></script>
+
+  </body>
+</html>

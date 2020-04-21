@@ -192,6 +192,7 @@
 <h3 id="并发程序内部的交互"><a href="#并发程序内部的交互" class="headerlink" title="并发程序内部的交互"></a>并发程序内部的交互</h3><p>并发程序内部会被划分为多个部分，每个部分都可以看作一个串行程序。在这些串行程序之间，可能会存在交互的需求。比如，多个串行程序可能都要对一个共享资源进行访问。又比如，它们之间需要传递一些数据。在这些情况下，我们就需要协调它们的执行，这就涉及<strong>同步</strong>。同步的作用是避免在并发访问共享资源时可能发生的冲突，以及有条不紊的传递数据。</p>
 <p>根据同步的原则，程序如果想使用一个共享资源，就必须先请求该资源并获得到对它的访问权。当程序不再需要某个资源的时候也，也应该放弃对该资源的访问权（也称释放资源）。一个程序对资源的请求不应该导致其他正在访问该资源的程序中断，而是应该等那个程序释放该资源之后再进行请求。也就是说，在同一时刻，某个资源应该只被一个程序占用。</p>
 <p>传递数据是并发程序内部的另一种交互方式，也称<strong>并发程序内部的通信</strong>。实际上协调这种内部通信方式不只“同步”这一种。我们也可以利用异步的方式对通信进行管理，这种方式可以使数据不加延迟的的发送给数据接收方。即使接收方还没为接收数据做好准备，也不会造成发送方的等待。数据会被临时存放在一个称为<strong>通信缓存</strong>的数据结构中。通信缓存是一种特殊的共享资源，它可以同时被多个程序使用。接收方可以在准备就绪之后按照数据存入通信缓存的顺序接收它们。</p>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>这篇文章，我们学习了并发编程的一些基础知识和概念。其中包括，串行程序和并发程序的区别、并发程序和并行程序的区别、并发程序的不确定性以及并发程序内部的交互等知识点。掌握这些基础，才能使我们更好的理解和开发并发程序。</p>
 </section>
     <!-- Tags START -->
     
@@ -273,7 +274,7 @@
   <div class="toc-main">
     <strong class="toc-title">Catalog</strong>
     
-      <ol class="toc-nav"><li class="toc-nav-item toc-nav-level-2"><a class="toc-nav-link" href="#并发编程基础"><span class="toc-nav-text">并发编程基础</span></a><ol class="toc-nav-child"><li class="toc-nav-item toc-nav-level-3"><a class="toc-nav-link" href="#串行程序和并发程序区别"><span class="toc-nav-text">串行程序和并发程序区别</span></a></li><li class="toc-nav-item toc-nav-level-3"><a class="toc-nav-link" href="#并发程序和并行程序的区别"><span class="toc-nav-text">并发程序和并行程序的区别</span></a></li><li class="toc-nav-item toc-nav-level-3"><a class="toc-nav-link" href="#并发程序的不确定性"><span class="toc-nav-text">并发程序的不确定性</span></a></li><li class="toc-nav-item toc-nav-level-3"><a class="toc-nav-link" href="#并发程序内部的交互"><span class="toc-nav-text">并发程序内部的交互</span></a></li></ol></li></ol>
+      <ol class="toc-nav"><li class="toc-nav-item toc-nav-level-2"><a class="toc-nav-link" href="#并发编程基础"><span class="toc-nav-text">并发编程基础</span></a><ol class="toc-nav-child"><li class="toc-nav-item toc-nav-level-3"><a class="toc-nav-link" href="#串行程序和并发程序区别"><span class="toc-nav-text">串行程序和并发程序区别</span></a></li><li class="toc-nav-item toc-nav-level-3"><a class="toc-nav-link" href="#并发程序和并行程序的区别"><span class="toc-nav-text">并发程序和并行程序的区别</span></a></li><li class="toc-nav-item toc-nav-level-3"><a class="toc-nav-link" href="#并发程序的不确定性"><span class="toc-nav-text">并发程序的不确定性</span></a></li><li class="toc-nav-item toc-nav-level-3"><a class="toc-nav-link" href="#并发程序内部的交互"><span class="toc-nav-text">并发程序内部的交互</span></a></li></ol></li><li class="toc-nav-item toc-nav-level-2"><a class="toc-nav-link" href="#总结"><span class="toc-nav-text">总结</span></a></li></ol>
     
   </div>
 </aside>
