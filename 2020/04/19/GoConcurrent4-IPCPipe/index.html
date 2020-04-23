@@ -165,7 +165,7 @@
   <!-- Article START -->
   <article class="post-article">
     <section class="markdown-content"><blockquote>
-<p>我在<a href="https://fanezhao.github.io/2020/04/17/Go并发编程（二）多进程编程/" target="_blank" rel="noopener">多进程编程</a>那篇博客中讲到Go支持的IPC方法有管道、信号和socket。今天来看下在Go中是如何使用管道的。</p>
+<p>我在<a href="http://zmoyi.com/2020/04/17/GoConcurrent2-MultiProgress/">多进程编程</a>那篇博客中讲到Go支持的IPC方法有管道、信号和socket。今天来看下在Go中是如何使用管道的。</p>
 </blockquote>
 <h2 id="什么是管道"><a href="#什么是管道" class="headerlink" title="什么是管道"></a>什么是管道</h2><p>管道是一种半双工（或者是单向）的通信方式，<strong>只能用于父进程与子进程或同祖先的子进程之间的通信。</strong>例如，在使用Shell命令的时候，常常就会用到管道，例如：</p>
 <figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">$</span><span class="bash"> ps aux | grep go</span></span><br></pre></td></tr></table></figure>

@@ -165,7 +165,7 @@
   <!-- Article START -->
   <article class="post-article">
     <section class="markdown-content"><blockquote>
-<p>我在<a href="http://zmoyi.com/2020/04/17/Go%E5%B9%B6%E5%8F%91%E7%BC%96%E7%A8%8B%EF%BC%88%E4%BA%8C%EF%BC%89%E5%A4%9A%E8%BF%9B%E7%A8%8B%E7%BC%96%E7%A8%8B/">多进程编程</a>那篇博客中讲到Go支持的IPC方法有管道、信号和socket。今天来看下在Go中是如何使用信号的。</p>
+<p>我在<a href="http://zmoyi.com/2020/04/17/GoConcurrent2-MultiProgress/">多进程编程</a>那篇博客中讲到Go支持的IPC方法有管道、信号和socket。今天来看下在Go中是如何使用信号的。</p>
 </blockquote>
 <h2 id="什么是信号"><a href="#什么是信号" class="headerlink" title="什么是信号"></a>什么是信号</h2><p>操作系统信号（signal）是IPC方法中唯一一种异步的通信方法，它的本质是用软件来模拟硬件的中断机制。信号用来通知某个进程有某个事情发生了。</p>
 <p>例如，在命令行终端按下某些快捷键，就会挂起或停止正在运行的程序；或者通过<code>kill</code>命令杀死某个进程的操作也有信号参与。</p>
@@ -204,7 +204,7 @@
 <figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">sigRecv := <span class="built_in">make</span>(<span class="keyword">chan</span> os.Signal, <span class="number">1</span>)</span><br><span class="line">sigs := []os.Signal&#123;syscall.SIGINT, syscall.SIGQUIT&#125;</span><br><span class="line">signal.Notify(sigRecv, sigs...)</span><br><span class="line"><span class="comment">// 永远都不会停止</span></span><br><span class="line"><span class="keyword">for</span> sig := <span class="keyword">range</span> sigRecv &#123;</span><br><span class="line">  <span class="comment">// 接收到信号不做任何处理，直接输出，相当于忽略信号，因此永远不会停止，除非kill掉</span></span><br><span class="line">  fmt.Printf(<span class="string">"%s\n"</span>, sig)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
 
 <p>在这个程序中，我们希望自行处理<code>SIGINT</code>和<code>SIGQUIT</code>信号。所以，<code>sigs</code>包含了<code>syscall.SIGINT</code>和<code>syscall.SIGQUIT</code>。然后，从<code>signal</code>接收通道中接收信号值，并做打印处理。</p>
-<p>在实际场景中，上述的做法是比较危险的，因为我们忽略了当前进程本譔处理的信号。如果当前进程接收到了未自定义处理方法的信号，就会执行由操作系统指定的默认操作。因此如果指定的自定义处理方法只是打印一些内容，就相当于使当前进程忽略掉相应的信号。这也就是如果我们使用<code>Ctrl+c</code>无法停掉上面的程序而只会在控制台打印的原因。</p>
+<p>在实际场景中，上述的做法是比较危险的，因为我们忽略了当前进程本该处理的信号。如果当前进程接收到了未自定义处理方法的信号，就会执行由操作系统指定的默认操作。因此如果指定的自定义处理方法只是打印一些内容，就相当于使当前进程忽略掉相应的信号。这也就是如果我们使用<code>Ctrl+c</code>无法停掉上面的程序而只会在控制台打印的原因。</p>
 <p>如果上述代码改成这样：</p>
 <figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">sigRecv := <span class="built_in">make</span>(<span class="keyword">chan</span> os.Signal, <span class="number">1</span>)</span><br><span class="line">signal.Notify(sigRecv)</span><br><span class="line"><span class="keyword">for</span> sig := <span class="keyword">range</span> sigRecv &#123;</span><br><span class="line">  fmt.Printf(<span class="string">"%s\n"</span>, sig)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
 
