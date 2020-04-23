@@ -167,9 +167,9 @@
     <section class="markdown-content"><blockquote>
 <p>我在<a href="http://zmoyi.com/2020/04/17/GoConcurrent2-MultiProgress/">多进程编程</a>那篇博客中讲到Go支持的IPC方法有管道、信号和socket。今天来看下在Go中是如何使用信号的。</p>
 </blockquote>
-<h2 id="什么是信号"><a href="#什么是信号" class="headerlink" title="什么是信号"></a>什么是信号</h2><p>操作系统信号（signal）是IPC方法中唯一一种异步的通信方法，它的本质是用软件来模拟硬件的中断机制。信号用来通知某个进程有某个事情发生了。</p>
-<p>例如，在命令行终端按下某些快捷键，就会挂起或停止正在运行的程序；或者通过<code>kill</code>命令杀死某个进程的操作也有信号参与。</p>
-<p>每个信号都是一个以“SIG”为前缀的名字，例如SIGINT、SIGQUIT以及SIGKILL等。但其实，在操作系统内部，信号是由下正整数表示的，这些正整数称为<strong>信号编号</strong>。在Linux在可以通过<code>kill</code>命令查看当前系统所支持的信号：</p>
+<h2 id="什么是信号"><a href="#什么是信号" class="headerlink" title="什么是信号"></a>什么是信号</h2><p>操作系统信号（signal）是IPC方法中唯一一种异步的通信方法，它的本质是用软件来模拟硬件的中断机制。</p>
+<p>信号是用来通知某个进程有某个事情发生了。例如，在命令行终端按下某些快捷键，就会挂起或停止正在运行的程序；或者通过<code>kill</code>命令杀死某个进程的操作也有信号参与。</p>
+<p>每个信号都是一个以“SIG”为前缀的名字，例如<code>SIGINT</code>、<code>SIGQUIT</code>以及<code>SIGKILL</code>等。但其实，在操作系统内部，信号是由正整数表示的，这些正整数称为<strong>信号编号</strong>。在Linux在可以通过<code>kill</code>命令查看当前系统所支持的信号：</p>
 <figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">$</span><span class="bash"> <span class="built_in">kill</span> -l</span></span><br><span class="line"> 1) SIGHUP	 2) SIGINT	 3) SIGQUIT	 4) SIGILL	 5) SIGTRAP</span><br><span class="line"> 6) SIGABRT	 7) SIGBUS	 8) SIGFPE	 9) SIGKILL	10) SIGUSR1</span><br><span class="line">11) SIGSEGV	12) SIGUSR2	13) SIGPIPE	14) SIGALRM	15) SIGTERM</span><br><span class="line">16) SIGSTKFLT	17) SIGCHLD	18) SIGCONT	19) SIGSTOP	20) SIGTSTP</span><br><span class="line">21) SIGTTIN	22) SIGTTOU	23) SIGURG	24) SIGXCPU	25) SIGXFSZ</span><br><span class="line">26) SIGVTALRM	27) SIGPROF	28) SIGWINCH	29) SIGIO	30) SIGPWR</span><br><span class="line">31) SIGSYS	34) SIGRTMIN	35) SIGRTMIN+1	36) SIGRTMIN+2	37) SIGRTMIN+3</span><br><span class="line">38) SIGRTMIN+4	39) SIGRTMIN+5	40) SIGRTMIN+6	41) SIGRTMIN+7	42) SIGRTMIN+8</span><br><span class="line">43) SIGRTMIN+9	44) SIGRTMIN+10	45) SIGRTMIN+11	46) SIGRTMIN+12	47) SIGRTMIN+13</span><br><span class="line">48) SIGRTMIN+14	49) SIGRTMIN+15	50) SIGRTMAX-14	51) SIGRTMAX-13	52) SIGRTMAX-12</span><br><span class="line">53) SIGRTMAX-11	54) SIGRTMAX-10	55) SIGRTMAX-9	56) SIGRTMAX-8	57) SIGRTMAX-7</span><br><span class="line">58) SIGRTMAX-6	59) SIGRTMAX-5	60) SIGRTMAX-4	61) SIGRTMAX-3	62) SIGRTMAX-2</span><br><span class="line">63) SIGRTMAX-1	64) SIGRTMAX</span><br></pre></td></tr></table></figure>
 
 <p>可以看到，Linux支持的信号有62种（编号32和33的信号为空）。</p>
@@ -177,21 +177,21 @@
 <li>标准信号：编号1到32的信号属于标准信号（也叫不可靠信号）。</li>
 <li>实时信号：编号34到64的信号属于实时信号（也叫可靠信号）。</li>
 </ul>
-<p>标准信号存在两个问题：</p>
+<p>其中标准信号存在两个问题：</p>
 <ul>
 <li>1、对于同一个进程来说，每种标准信号只会被记录并处理一次。</li>
-<li>2、如果发送给某一个进程的标准信号的各类有多个，那么它们的处理顺序是不确定的。</li>
+<li>2、如果发送给某一个进程的标准信号的种类有多个，那么它们的处理顺序是不确定的。</li>
 </ul>
-<p>实时信号解决了标准信号上述的两个问题，即多个同种类的实时信号都可以记录在案，并且可以按照信号的发送顺序被处理。虽然实时信号在功能上更加强大，但是已经成为事实标准的标准信号也没法被替换了，所以两者一直共存着了。</p>
+<p>实时信号解决了标准信号上述的两个问题，即多个同种类的实时信号都可以记录在案，并且可以按照信号的发送顺序被处理。虽然实时信号在功能上更加强大，但是已经成为事实标准的标准信号也没法被替换，所以两者一直共存着了。</p>
 <p>简单来说，信号的来源有键盘输入（比如Ctrl+c）、硬件故障、系统函数调用和软件中的非法运算。进程响应信号的方式有三种：<strong>忽略、捕捉和执行默认操作。</strong></p>
-<p>Linux对第一个标准信号都默认的操作方式。针对不同各类的标准信号其默认的操作方式一定是下列操作之一：<strong>终止进程、忽略该信号、终止进程并保存内存信息、停止进程、恢复进程（若进程已停止）。</strong></p>
+<p>Linux对每一个标准信号都默认的操作方式。针对不同各类的标准信号其默认的操作方式一定是下列操作之一：<strong>终止进程、忽略该信号、终止进程并保存内存信息、停止进程、恢复进程（若进程已停止）。</strong></p>
 <h2 id="使用Go中开发处理信号程序"><a href="#使用Go中开发处理信号程序" class="headerlink" title="使用Go中开发处理信号程序"></a>使用Go中开发处理信号程序</h2><h3 id="自定义信号处理"><a href="#自定义信号处理" class="headerlink" title="自定义信号处理"></a>自定义信号处理</h3><p>对于绝大多数标准信号而言，我们可以自定义程序对它的响应方式。更具体的讲，进程要告知操作系统内核：当某种信号到来时，需要执行某种操作。在程序中，这些自定义的信号响应方式往往由函数表示。</p>
 <p>Go命令会对其中的一些以键盘输入为来源的标准信号做出响应，这是通过<code>os/signal</code>中的一些API来实现的。下面就从接口类型<code>os.Signal</code>开始讲起：</p>
-<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">type</span> Signal <span class="keyword">interface</span> &#123;</span><br><span class="line">	String() <span class="keyword">string</span></span><br><span class="line">	Signal() <span class="comment">// to distinguish from other Stringers</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">type</span> Signal <span class="keyword">interface</span> &#123;</span><br><span class="line">  String() <span class="keyword">string</span></span><br><span class="line">  Signal() <span class="comment">// to distinguish from other Stringers</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
 
-<p><code>其中Signal</code>方法的声明没有实际意义，它只是作为<code>os.Signal</code>接口的一个标识。在Go的标准库中，所以实现它的类型的<code>Signal</code>都是空方法。所有实现此接口类型的值都可以表示成一个操作系统信号。</p>
+<p><code>其中Signal</code>方法的声明没有实际意义，它只是作为<code>os.Signal</code>接口的一个标识。在Go的标准库中，所有实现它的类型的<code>Signal</code>方法都是空方法。所有实现此接口类型的值都可以表示成一个操作系统信号。</p>
 <p>另外，查看<code>syscall.Signal</code>类型的<code>String</code>方法的源码，会发现在其中有一个数组类型的私有变量<code>signals</code>。它的每个索引值都代表了一个标准信号的编号，而对应的元素则是针对该信号的一个简短描述。</p>
-<p>代码包<code>os/signal</code>跌<code>Notify</code>函数用来当操作系统向当前进程发送指定信号时发出通知。</p>
+<p>代码包<code>os/signal</code>中的<code>Notify</code>函数用来当操作系统向当前进程发送指定信号时发出通知。</p>
 <figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">Notify</span><span class="params">(c <span class="keyword">chan</span>&lt;- os.Signal, sig ...os.Signal)</span></span></span><br></pre></td></tr></table></figure>
 
 <ul>
@@ -224,7 +224,8 @@
 <p>在很多时候，我们并不想完全取消掉自行信号处理信号的行为，而只是想取消一部分。为此，我们只需要再次调用<code>signal.Notify</code>函数，并重新设定其第二个可变参数值即可。不过要保证作为第一个参数的<code>signal</code>接收通道相同。</p>
 <p><strong>问题：如果<code>signal</code>接收通道不同，会怎样？</strong></p>
 <p>如果我们先后调用了两次<code>signal.Notify</code>函数，但两次传递给该函数的<code>signal</code>接收通道不同，那么<code>signal</code>处理程序会将这两次调用视为毫不相干。</p>
-<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>这篇文章，我们学习信号的一些基础概念，还有在Go中如何对信号进行自定义处理，以及如何恢复部分信号为系统默认处理等知识。本篇文章中的但到参考代码并不算多，在我的Github上有一个<a href="https://github.com/fanezhao/GoConcurrent/tree/master/chapter3/signal" target="_blank" rel="noopener">完整示例</a>，大家可以点击查看运行。</p>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>本篇文章我们学习信号的一些基础概念，还有在Go中如何对信号进行自定义处理，以及如何恢复部分信号为系统默认处理等知识。</p>
+<h2 id="链接"><a href="#链接" class="headerlink" title="链接"></a>链接</h2><p>本篇文章中的但到参考代码并不算多，在我的Github上有一个<a href="https://github.com/fanezhao/GoConcurrent/tree/master/chapter3/signal" target="_blank" rel="noopener">完整示例</a>，大家可以点击查看运行。</p>
 </section>
     <!-- Tags START -->
     
@@ -295,7 +296,7 @@
   <div class="toc-main">
     <strong class="toc-title">目录</strong>
     
-      <ol class="toc-nav"><li class="toc-nav-item toc-nav-level-2"><a class="toc-nav-link" href="#什么是信号"><span class="toc-nav-text">什么是信号</span></a><ol class="toc-nav-child"><li class="toc-nav-item toc-nav-level-3"><a class="toc-nav-link" href="#标准信号和实时信号"><span class="toc-nav-text">标准信号和实时信号</span></a></li></ol></li><li class="toc-nav-item toc-nav-level-2"><a class="toc-nav-link" href="#使用Go中开发处理信号程序"><span class="toc-nav-text">使用Go中开发处理信号程序</span></a><ol class="toc-nav-child"><li class="toc-nav-item toc-nav-level-3"><a class="toc-nav-link" href="#自定义信号处理"><span class="toc-nav-text">自定义信号处理</span></a></li><li class="toc-nav-item toc-nav-level-3"><a class="toc-nav-link" href="#恢复系统默认信号处理"><span class="toc-nav-text">恢复系统默认信号处理</span></a></li></ol></li><li class="toc-nav-item toc-nav-level-2"><a class="toc-nav-link" href="#总结"><span class="toc-nav-text">总结</span></a></li></ol>
+      <ol class="toc-nav"><li class="toc-nav-item toc-nav-level-2"><a class="toc-nav-link" href="#什么是信号"><span class="toc-nav-text">什么是信号</span></a><ol class="toc-nav-child"><li class="toc-nav-item toc-nav-level-3"><a class="toc-nav-link" href="#标准信号和实时信号"><span class="toc-nav-text">标准信号和实时信号</span></a></li></ol></li><li class="toc-nav-item toc-nav-level-2"><a class="toc-nav-link" href="#使用Go中开发处理信号程序"><span class="toc-nav-text">使用Go中开发处理信号程序</span></a><ol class="toc-nav-child"><li class="toc-nav-item toc-nav-level-3"><a class="toc-nav-link" href="#自定义信号处理"><span class="toc-nav-text">自定义信号处理</span></a></li><li class="toc-nav-item toc-nav-level-3"><a class="toc-nav-link" href="#恢复系统默认信号处理"><span class="toc-nav-text">恢复系统默认信号处理</span></a></li></ol></li><li class="toc-nav-item toc-nav-level-2"><a class="toc-nav-link" href="#总结"><span class="toc-nav-text">总结</span></a></li><li class="toc-nav-item toc-nav-level-2"><a class="toc-nav-link" href="#链接"><span class="toc-nav-text">链接</span></a></li></ol>
     
   </div>
 </aside>

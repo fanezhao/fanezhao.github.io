@@ -168,7 +168,7 @@
 <p> 我们知道，内核对进程的切换和调度使得多个进程都可以有条不紊的并发执行。在很多时候，多个进程之间需要相互配合共同完成一个任务，就需要IPC的支持。什么是IPC？参考我的另一篇文章<a href="http://zmoyi.com/2020/04/17/GoConcurrent2-MultiProgress/">多进程编程</a>。</p>
 </blockquote>
 <p>在通信过程中，各个进程之间可能会发生一些干扰，这种干扰主要集中在有共享数据的情况下。不论是多CPU、多进程还是多线程，只要它们之间存在数据共享，就一定会牵扯到同步问题。而且该问题具有普遍意义，其中一些概念和论点可以适用于很多场景。</p>
-<h2 id="模拟同步问题"><a href="#模拟同步问题" class="headerlink" title="模拟同步问题"></a>模拟同步问题</h2><p>我们以一个看似简单的应用场景——计数器，它由进程A创建并与进程B共享。进程A和进程B实际执行了相同的程序，这个程序是把符合条件的数据从数据库迁移到磁盘上。程序总是按照固定顺序从数据库中查询数据，并使用计数器记录的已查询的数据的最大行号作为依据。下面是具体步骤：</p>
+<h2 id="同步问题"><a href="#同步问题" class="headerlink" title="同步问题"></a>同步问题</h2><p>我们以一个看似简单的应用场景——计数器，来说明同步问题。它由进程A创建并与进程B共享。进程A和进程B实际执行了相同的程序，这个程序的功能是把符合条件的数据从数据库迁移到磁盘上。程序总是按照固定顺序从数据库中查询数据，并使用计数器记录已查询的数据的最大行号。下面是具体步骤：</p>
 <ul>
 <li>1、读取计数器的值。</li>
 <li>2、从数据库中查询数据。如果我们使用c来代表计数器的值，那么查询的范围就是行号在[c, c+100000)的数据，每次查询10万条数据。</li>
@@ -176,7 +176,7 @@
 <li>4、把计数器值加100000。计数器的新值就是下次要查询的起始行号。</li>
 <li>5、检查数据是否读完，如果是，则退出，否则跳转回1。</li>
 </ul>
-<p>进程A和进程B会并发运行，它们会各自的循环迁移，直到数据全部迁移完成为止。</p>
+<p>进程A和进程B会并发运行，它们会各自的循环迁移数据，直到数据全部迁移完成为止。</p>
 <p>这会出现问题么？那是肯定的。</p>
 <h3 id="流程一"><a href="#流程一" class="headerlink" title="流程一"></a>流程一</h3><p>由于内核会对各个进程进行切换和调度，所以不能保证进程在迁移每个数据的过程中不被打断。也就是说，进程A和进程B在运行的时候是互相穿插在一起的。下面我们假设一种进程调度过程：</p>
 <ul>
@@ -196,24 +196,23 @@
 
 <p>你可能发现，上述的调度过程有一个很明显的问题：进程A和进程B在做重复事情，导致了双倍的资源消耗，还有事倍功半的结果。</p>
 <p>这是因为同一个进程对计数器值的存取时间跨度太大，以至于计数器只起到了任务进度记录的作用，而没起到在进程间协调的作用。既然是由于时间跨度大引起的，我们就把这个时间跨度缩到最小，看能不能解决问题。</p>
-<h3 id="流程二"><a href="#流程二" class="headerlink" title="流程二"></a>流程二</h3><p>我们把上面的第4步移到第2步，在读取完计数器的值之后立即更新它。</p>
-<p>这样改进能够解决上述问题么？还是不能，假设此时的调度流程是这样的，内核在进程A已经读取但还没更新计数器的值的时候，让CPU运行进程B，会发生什么？请看下图：</p>
+<h3 id="流程二"><a href="#流程二" class="headerlink" title="流程二"></a>流程二</h3><p>我们把上面的第4步移到第2步，即在读取完计数器的值之后立即更新它。</p>
+<p>这样改进能够解决上述问题么？很遗憾！还是不能，假设此时的调度流程是这样的，内核在进程A已经读取但还没更新计数器的值的时候，让CPU运行进程B，会发生什么？请看下图：</p>
 <img src="http://cdn.zmoyi.com/static/images/计数器初始调度改进.jpg">
 
-<p>显然从第二个调度流程来看，改进并没有起到什么实质性作用。内核无法理解程序中各个语句间的关联的，因此也就无法保证总会在合适的时机切换进程。不过第二个流程相对于第一个也确实降低了发生问题的概率。</p>
-<p><strong>那到底怎样都是正确的解决方法呢？后面揭晓！</strong>先熟悉一下相关的概念。</p>
-<h2 id="相关概念"><a href="#相关概念" class="headerlink" title="相关概念"></a>相关概念</h2><h3 id="竞态条件"><a href="#竞态条件" class="headerlink" title="竞态条件"></a>竞态条件</h3><p>只要多个进程同时对一个资源进行访问，就很可能互相干扰，这种干扰通常称之为<strong>竞态条件（race condition）</strong>。它通常在编码和测试过程中难以察觉。</p>
-<p>造成况态条件的根本原因在于进程在进行某些操作的时候被中断了。虽然进程再次运行时其状态会恢复如初，但是外界环境很可能已经在这极短的时间内发生了改变，上述的计数器就是例子。如果能够保证获取和更新计数器的值是一个原子操作，那竞态条件就不会发生。具体来讲就是，进程A在获取并更新计数器的值的过程不被中断，那么B就会去处理[100001, 20000]正确范围内的数据了。</p>
+<p>显然从第二个调度流程来看，改进并没有起到什么实质性作用。内核无法理解程序中各个语句间的关联，因此也就无法保证总会在合适的时机切换进程。不过第二个流程相对于第一个也确实降低了发生问题的概率。</p>
+<h2 id="同步相关概念"><a href="#同步相关概念" class="headerlink" title="同步相关概念"></a>同步相关概念</h2><h3 id="竞态条件"><a href="#竞态条件" class="headerlink" title="竞态条件"></a>竞态条件</h3><p>只要多个进程同时对一个资源进行访问，就很可能互相干扰，这种干扰通常称之为<strong>竞态条件（race condition）</strong>。它通常在编码和测试过程中难以察觉。</p>
+<p>造成竞态条件的根本原因在于进程在进行某些操作的时候被中断了。虽然进程再次运行时其状态会恢复如初，但是外界环境很可能已经在这极短的时间内发生了改变，上述的计数器就是例子。如果能够保证获取和更新计数器的值是一个原子操作，那竞态条件就不会发生。具体来讲就是，进程A在获取并更新计数器的值的过程不被中断，那么B就会去处理[100001, 20000]正确范围内的数据了。</p>
 <h3 id="原子操作"><a href="#原子操作" class="headerlink" title="原子操作"></a>原子操作</h3><p>执行过程中不能中断的操作叫做<strong>原子操作（atomic operation）</strong>，而只能被串行化访问或执行的某个资源或某段代码称为<strong>临界区（critical section）</strong>。例如：在第二个流程中，每个进程对计数器的读取和更新操作应该是原子操作。获取和更新计数器的值的代码共同形成一个临界区。</p>
 <blockquote>
 <p>BTW，所有的系统调用都是原子操作，我们不用担心它们的执行被中断。</p>
 </blockquote>
-<p>原子操作必须由一个单一的汇编指令表示，并且需要得到芯片级别的支持，这使得原子操作能够做到绝对的并发安全，而且比其它同步机制要快很多。</p>
+<p>原子操作必须由一个单一的汇编指令表示，且得到芯片级别的支持，这才使得原子操作能够做到绝对的并发安全，而且比其它同步机制要快很多。</p>
 <p><strong>思考一个问题，如果一个原子操作的执行问题无法结束又无法中断它，该怎么办？</strong></p>
 <p>实际上，这也是内核只提供针对二进制位和整数的原子操作的原因。原子操作只适合细粒度的简单操作。Go是通过<code>sync/atomic</code>包中的一些函数来支持原子操作的。</p>
 <h3 id="互斥"><a href="#互斥" class="headerlink" title="互斥"></a>互斥</h3><p>相比原子操作，让串行化执行的若干代码形成的临界区的这种做法更加通用。保证只有一个进程或线程在临界区之内的做法叫做——<strong>互斥（mutual exclusion，简称mutex）</strong>。实现互斥的方法必须保证<strong>排他原则（exclusion principle）</strong>，并且这种保证不能依赖计算机硬件，也就是说互斥必须有效且通用。Go的<code>sync</code>包也包含了对互斥的支持。</p>
 <p>至此，对于同步的介绍先暂时告一段落，我还会回来的。</p>
-<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>通过这篇文章，我们初步了解了在并发编程中的涉及的最重要的问题之一——同步问题。通过计数器的例子模拟了并发编程中的同步问题，并介绍了同步相关概念。使我们在后面的深入的同步问题学习中更加游刃有余。</p>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>这篇文章我们初步了解了在并发编程中的涉及的最重要的问题之一——同步问题。还通过计数器的例子模拟了并发编程中的同步问题，并介绍了同步相关概念。这些只是对并发同步问题的一个初步探究，后面我还会深入的学习，毕竟计数器的问题还没解决呢？</p>
 </section>
     <!-- Tags START -->
     
@@ -295,7 +294,7 @@
   <div class="toc-main">
     <strong class="toc-title">目录</strong>
     
-      <ol class="toc-nav"><li class="toc-nav-item toc-nav-level-2"><a class="toc-nav-link" href="#模拟同步问题"><span class="toc-nav-text">模拟同步问题</span></a><ol class="toc-nav-child"><li class="toc-nav-item toc-nav-level-3"><a class="toc-nav-link" href="#流程一"><span class="toc-nav-text">流程一</span></a></li><li class="toc-nav-item toc-nav-level-3"><a class="toc-nav-link" href="#流程二"><span class="toc-nav-text">流程二</span></a></li></ol></li><li class="toc-nav-item toc-nav-level-2"><a class="toc-nav-link" href="#相关概念"><span class="toc-nav-text">相关概念</span></a><ol class="toc-nav-child"><li class="toc-nav-item toc-nav-level-3"><a class="toc-nav-link" href="#竞态条件"><span class="toc-nav-text">竞态条件</span></a></li><li class="toc-nav-item toc-nav-level-3"><a class="toc-nav-link" href="#原子操作"><span class="toc-nav-text">原子操作</span></a></li><li class="toc-nav-item toc-nav-level-3"><a class="toc-nav-link" href="#互斥"><span class="toc-nav-text">互斥</span></a></li></ol></li><li class="toc-nav-item toc-nav-level-2"><a class="toc-nav-link" href="#总结"><span class="toc-nav-text">总结</span></a></li></ol>
+      <ol class="toc-nav"><li class="toc-nav-item toc-nav-level-2"><a class="toc-nav-link" href="#同步问题"><span class="toc-nav-text">同步问题</span></a><ol class="toc-nav-child"><li class="toc-nav-item toc-nav-level-3"><a class="toc-nav-link" href="#流程一"><span class="toc-nav-text">流程一</span></a></li><li class="toc-nav-item toc-nav-level-3"><a class="toc-nav-link" href="#流程二"><span class="toc-nav-text">流程二</span></a></li></ol></li><li class="toc-nav-item toc-nav-level-2"><a class="toc-nav-link" href="#同步相关概念"><span class="toc-nav-text">同步相关概念</span></a><ol class="toc-nav-child"><li class="toc-nav-item toc-nav-level-3"><a class="toc-nav-link" href="#竞态条件"><span class="toc-nav-text">竞态条件</span></a></li><li class="toc-nav-item toc-nav-level-3"><a class="toc-nav-link" href="#原子操作"><span class="toc-nav-text">原子操作</span></a></li><li class="toc-nav-item toc-nav-level-3"><a class="toc-nav-link" href="#互斥"><span class="toc-nav-text">互斥</span></a></li></ol></li><li class="toc-nav-item toc-nav-level-2"><a class="toc-nav-link" href="#总结"><span class="toc-nav-text">总结</span></a></li></ol>
     
   </div>
 </aside>
