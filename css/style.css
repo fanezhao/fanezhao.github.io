@@ -227,7 +227,7 @@ h2.article-head {
   float: left;
 }
 .money-like .money-code .alipay-code .code-image {
-  background-image: url("http://q8mr3z1u9.bkt.clouddn.com/static/images/alipay.jpeg");
+  background-image: url("http://cdn.zmoyi.com/static/images/alipay.jpeg");
   background-size: contain;
   background-repeat: no-repeat;
   width: 4.5em;
@@ -237,7 +237,7 @@ h2.article-head {
   float: right;
 }
 .money-like .money-code .wechat-code .code-image {
-  background-image: url("http://q8mr3z1u9.bkt.clouddn.com/static/images/wcpay.jpeg");
+  background-image: url("http://cdn.zmoyi.com/static/images/wcpay.jpeg");
   background-size: contain;
   background-repeat: no-repeat;
   width: 4.5em;
@@ -359,7 +359,7 @@ h2.article-head {
   }
 }
 .logo {
-  background: url("http://q8mr3z1u9.bkt.clouddn.com/static/images/logo.png");
+  background: url("http://cdn.zmoyi.com/static/images/logo.png");
   background-size: contain;
   width: 40px;
   height: 40px;

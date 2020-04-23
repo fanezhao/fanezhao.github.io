@@ -6,7 +6,7 @@
   <meta name="description" content="本博客于 2020 年建站，记录了我在工作过程中学到的技术、运营及产品等知识，并以原创文章的形式分享给大家。未来仍然将坚持不懈的分享技术知识、工作经历等原创内容。 希望看到本博客的前辈多指点扶正、同行们能一起共同学习与进步、正在学习的小伙伴能通过本博客学到对自己有用的知识。">
   <meta name="keyword" content="ZMOYI, 原创博客, Java, Golang, Linux, 全栈, 后端开发, 前端开发">
   
-    <link rel="shortcut icon" type="image/ico" href="http://q8mr3z1u9.bkt.clouddn.com/static/images/ico.png"/>
+    <link rel="shortcut icon" type="image/ico" href="http://cdn.zmoyi.com/static/images/ico.png"/>
   
   <title>
     
@@ -216,7 +216,7 @@
 <figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">$</span><span class="bash"> docker run --detach \</span></span><br><span class="line">        --name nginx-blog \	# 容器名我定义为nginx-blog</span><br><span class="line">        -p 80:80 \</span><br><span class="line">        -v /etc/localtime:/etc/localtime:ro\</span><br><span class="line">        -v /home/zmoyi/blogroot:/usr/share/nginx/html:rw\	# 注意：这里要把blogroot映射为nginx的静态资源目录</span><br><span class="line">        -v /home/zmoyi/nginx/config/nginx.conf:/etc/nginx/nginx.conf/:rw\</span><br><span class="line">        -v /home/zmoyi/nginx/config/conf.d/default.conf:/etc/nginx/conf.d/default.conf:rw\</span><br><span class="line">        -v /home/zmoyi/nginx/logs:/var/log/nginx/:rw\</span><br><span class="line">        -v /home/zmoyi/nginx/ssl:/ssl/:rw\</span><br><span class="line">        -d nginx</span><br></pre></td></tr></table></figure>
 
 <p>4、查询容器状态</p>
-<img src="http://q8mr3z1u9.bkt.clouddn.com/static/images/nginx_status.png">
+<img src="http://cdn.zmoyi.com/static/images/nginx_status.png">
 
 <p>在 STATUS 那项如果是Up，就说明启动成功了。</p>
 <h2 id="初始化博客"><a href="#初始化博客" class="headerlink" title="初始化博客"></a>初始化博客</h2><p><strong>一、安装Hexo</strong></p>
@@ -329,7 +329,7 @@
   
     <aside class="catalog-container">
   <div class="toc-main">
-    <strong class="toc-title">Catalog</strong>
+    <strong class="toc-title">目录</strong>
     
       <ol class="toc-nav"><li class="toc-nav-item toc-nav-level-2"><a class="toc-nav-link" href="#基础环境"><span class="toc-nav-text">基础环境</span></a></li><li class="toc-nav-item toc-nav-level-2"><a class="toc-nav-link" href="#本地环境搭建"><span class="toc-nav-text">本地环境搭建</span></a></li><li class="toc-nav-item toc-nav-level-2"><a class="toc-nav-link" href="#服务器环境搭建"><span class="toc-nav-text">服务器环境搭建</span></a></li><li class="toc-nav-item toc-nav-level-2"><a class="toc-nav-link" href="#初始化博客"><span class="toc-nav-text">初始化博客</span></a></li><li class="toc-nav-item toc-nav-level-2"><a class="toc-nav-link" href="#引用链接"><span class="toc-nav-text">引用链接</span></a></li></ol>
     

@@ -6,7 +6,7 @@
   <meta name="description" content="本博客于 2020 年建站，记录了我在工作过程中学到的技术、运营及产品等知识，并以原创文章的形式分享给大家。未来仍然将坚持不懈的分享技术知识、工作经历等原创内容。 希望看到本博客的前辈多指点扶正、同行们能一起共同学习与进步、正在学习的小伙伴能通过本博客学到对自己有用的知识。">
   <meta name="keyword" content="ZMOYI, 原创博客, Java, Golang, Linux, 全栈, 后端开发, 前端开发">
   
-    <link rel="shortcut icon" type="image/ico" href="http://q8mr3z1u9.bkt.clouddn.com/static/images/ico.png"/>
+    <link rel="shortcut icon" type="image/ico" href="http://cdn.zmoyi.com/static/images/ico.png"/>
   
   <title>
     
@@ -192,13 +192,13 @@
 <li>10、进程B把计数器值更新成100001。</li>
 </ul>
 <p>上述调度过程如图所示：</p>
-<img src="http://q8mr3z1u9.bkt.clouddn.com/static/images/计数器初始调度.jpg">
+<img src="http://cdn.zmoyi.com/static/images/计数器初始调度.jpg">
 
 <p>你可能发现，上述的调度过程有一个很明显的问题：进程A和进程B在做重复事情，导致了双倍的资源消耗，还有事倍功半的结果。</p>
 <p>这是因为同一个进程对计数器值的存取时间跨度太大，以至于计数器只起到了任务进度记录的作用，而没起到在进程间协调的作用。既然是由于时间跨度大引起的，我们就把这个时间跨度缩到最小，看能不能解决问题。</p>
 <h3 id="流程二"><a href="#流程二" class="headerlink" title="流程二"></a>流程二</h3><p>我们把上面的第4步移到第2步，在读取完计数器的值之后立即更新它。</p>
 <p>这样改进能够解决上述问题么？还是不能，假设此时的调度流程是这样的，内核在进程A已经读取但还没更新计数器的值的时候，让CPU运行进程B，会发生什么？请看下图：</p>
-<img src="http://q8mr3z1u9.bkt.clouddn.com/static/images/计数器初始调度改进.jpg">
+<img src="http://cdn.zmoyi.com/static/images/计数器初始调度改进.jpg">
 
 <p>显然从第二个调度流程来看，改进并没有起到什么实质性作用。内核无法理解程序中各个语句间的关联的，因此也就无法保证总会在合适的时机切换进程。不过第二个流程相对于第一个也确实降低了发生问题的概率。</p>
 <p><strong>那到底怎样都是正确的解决方法呢？后面揭晓！</strong>先熟悉一下相关的概念。</p>
@@ -293,7 +293,7 @@
   
     <aside class="catalog-container">
   <div class="toc-main">
-    <strong class="toc-title">Catalog</strong>
+    <strong class="toc-title">目录</strong>
     
       <ol class="toc-nav"><li class="toc-nav-item toc-nav-level-2"><a class="toc-nav-link" href="#模拟同步问题"><span class="toc-nav-text">模拟同步问题</span></a><ol class="toc-nav-child"><li class="toc-nav-item toc-nav-level-3"><a class="toc-nav-link" href="#流程一"><span class="toc-nav-text">流程一</span></a></li><li class="toc-nav-item toc-nav-level-3"><a class="toc-nav-link" href="#流程二"><span class="toc-nav-text">流程二</span></a></li></ol></li><li class="toc-nav-item toc-nav-level-2"><a class="toc-nav-link" href="#相关概念"><span class="toc-nav-text">相关概念</span></a><ol class="toc-nav-child"><li class="toc-nav-item toc-nav-level-3"><a class="toc-nav-link" href="#竞态条件"><span class="toc-nav-text">竞态条件</span></a></li><li class="toc-nav-item toc-nav-level-3"><a class="toc-nav-link" href="#原子操作"><span class="toc-nav-text">原子操作</span></a></li><li class="toc-nav-item toc-nav-level-3"><a class="toc-nav-link" href="#互斥"><span class="toc-nav-text">互斥</span></a></li></ol></li><li class="toc-nav-item toc-nav-level-2"><a class="toc-nav-link" href="#总结"><span class="toc-nav-text">总结</span></a></li></ol>
     

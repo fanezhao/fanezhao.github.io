@@ -6,7 +6,7 @@
   <meta name="description" content="本博客于 2020 年建站，记录了我在工作过程中学到的技术、运营及产品等知识，并以原创文章的形式分享给大家。未来仍然将坚持不懈的分享技术知识、工作经历等原创内容。 希望看到本博客的前辈多指点扶正、同行们能一起共同学习与进步、正在学习的小伙伴能通过本博客学到对自己有用的知识。">
   <meta name="keyword" content="ZMOYI, 原创博客, Java, Golang, Linux, 全栈, 后端开发, 前端开发">
   
-    <link rel="shortcut icon" type="image/ico" href="http://q8mr3z1u9.bkt.clouddn.com/static/images/ico.png"/>
+    <link rel="shortcut icon" type="image/ico" href="http://cdn.zmoyi.com/static/images/ico.png"/>
   
   <title>
     
@@ -183,7 +183,7 @@
 <p>用户进程无法直接访问内核空间。用户空间和内核空间都是操作系统在内存上划分的一个范围，它们共同瓜分了操作系统能够支配的内存区域，并体现了Linux操作系统对物理内存的划分。</p>
 <p>内存区域中的每个单元都是有地址的，这些地址由指针来标识和定位。通过指针来寻找内存单元的操作也叫<strong>内存寻址</strong>。指针是一个正整数，由若干个二进制位表示，具体的二进制位的数量由计算机（确切的说是CPU）的字长决定。因此，在32位计算机中可以有效标识2^32的内存单元，而64位计算机中可以有效标识2^64的内存单元。</p>
 <p>这里所说的地址并非物理内存中的地址，而是虚拟地址。面由虚拟地址来标识的内存区域又称为虚拟地址空间，也就是我们说的<strong>虚拟内存</strong>。</p>
-<img src="http://q8mr3z1u9.bkt.clouddn.com/static/images/Linux操作系统对虚拟内存的划分.jpg">
+<img src="http://cdn.zmoyi.com/static/images/Linux操作系统对虚拟内存的划分.jpg">
 
 <p>如上图所示，用户空间虚拟地址的范围是从0到 TASK_SIZE，而内核空间则占据了剩余的空间，TASK_SIZE相当于这两个空间的分界线，它实际上是一个常数，由计算机的体系结构决定。</p>
 <p>用户会为每个用户进程分配的是虚拟内存而不是物理内存。每个用户进程分配到的虚拟内存总是在用户空间中，而内核空间则是留给内核专用。另外，每个进程都认为分配给它的虚拟内存就是整个用户空间。一个用户进程不可能操纵另一个用户进程的虚拟内存，因为后者的虚拟内存对于前者来说是不可见的。</p>
@@ -195,7 +195,7 @@
 <p>说一系统调用，就不得不提及另一对概念——内核态和用户态。为了保证操作系统的安全，内核依据由CPU提供的、可以让进程驻留的特权级别建立了两个特权状态——<strong>内核态和用户态</strong>。</p>
 <p>在大部分时间里，CPU都处于用户态，这里CPU只能对用户空间进行访问。换言之，CPU在用户态下进行的用户进程是不能于内核接触的。当用户进程发起一个系统调用，内核会把CPU从用户态切换到内核态，而后会让CPU执行对应的内核函数。</p>
 <p>CPU在内核态下是有权访问内核空间的，这就相当于实现在用户进程可以通过系统调用使用内核提供的功能。当内核函数执行完毕后，内核会把CPU从内核态切回用户态，并把执行结果返回给用户进程。</p>
-<img src="http://q8mr3z1u9.bkt.clouddn.com/static/images/系统调用过程示意图.jpg">
+<img src="http://cdn.zmoyi.com/static/images/系统调用过程示意图.jpg">
 
 <p>从上图可以看出一个系统调用从开始到结束的完整流程。再次强调，只有当CPU切换到内核态后，才能执行内核函数，而内核函数执行完毕之后，CPU状态也被切回用户态。</p>
 <h3 id="进程的切换和调度"><a href="#进程的切换和调度" class="headerlink" title="进程的切换和调度"></a>进程的切换和调度</h3><p>各其它分时操作系统一样，Linux操作系统也可以凭借CPU的威力快速的在多个进程间切换，这也称为进程间的<strong>上下文切换</strong>。如此会产生多个进程同时运行的假象，而每个进程都会认为自己独占了CPU，这就是<strong>多任务操作系统</strong>的由来。不过无论切换速度如何，在同一时刻运行的进程只有一个。</p>
@@ -307,7 +307,7 @@
   
     <aside class="catalog-container">
   <div class="toc-main">
-    <strong class="toc-title">Catalog</strong>
+    <strong class="toc-title">目录</strong>
     
       <ol class="toc-nav"><li class="toc-nav-item toc-nav-level-2"><a class="toc-nav-link" href="#进程基础概念"><span class="toc-nav-text">进程基础概念</span></a><ol class="toc-nav-child"><li class="toc-nav-item toc-nav-level-3"><a class="toc-nav-link" href="#进程的定义"><span class="toc-nav-text">进程的定义</span></a></li><li class="toc-nav-item toc-nav-level-3"><a class="toc-nav-link" href="#进程和衍生"><span class="toc-nav-text">进程和衍生</span></a></li><li class="toc-nav-item toc-nav-level-3"><a class="toc-nav-link" href="#进程的标识"><span class="toc-nav-text">进程的标识</span></a></li><li class="toc-nav-item toc-nav-level-3"><a class="toc-nav-link" href="#进程的空间划分"><span class="toc-nav-text">进程的空间划分</span></a></li><li class="toc-nav-item toc-nav-level-3"><a class="toc-nav-link" href="#什么是系统调用"><span class="toc-nav-text">什么是系统调用</span></a></li><li class="toc-nav-item toc-nav-level-3"><a class="toc-nav-link" href="#进程的切换和调度"><span class="toc-nav-text">进程的切换和调度</span></a></li><li class="toc-nav-item toc-nav-level-3"><a class="toc-nav-link" href="#进程间通信"><span class="toc-nav-text">进程间通信</span></a></li></ol></li><li class="toc-nav-item toc-nav-level-2"><a class="toc-nav-link" href="#总结"><span class="toc-nav-text">总结</span></a></li></ol>
     
