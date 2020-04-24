@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+<html>
+  <head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0" name="viewport">
+  <meta name="description" content="本博客于 2020 年建站，记录了我在工作过程中学到的技术、运营及产品等知识，并以原创文章的形式分享给大家。未来仍然将坚持不懈的分享技术知识、工作经历等原创内容。 希望看到本博客的前辈多指点扶正、同行们能一起共同学习与进步、正在学习的小伙伴能通过本博客学到对自己有用的知识。">
+  <meta name="keyword" content="ZMOYI, 原创博客, Java, Golang, Linux, 全栈, 后端开发, 前端开发">
+  
+    <link rel="shortcut icon" type="image/ico" href="http://cdn.zmoyi.com/static/images/ico.png"/>
+  
+  <title>
+    
+      Go并发编程（六）IPC之socket基础 | Fane&#39;Blog
+    
+  </title>
+  <link href="//cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css" rel="stylesheet">
+  <link href="//cdnjs.cloudflare.com/ajax/libs/nprogress/0.2.0/nprogress.min.css" rel="stylesheet">
+  <link href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/tomorrow.min.css" rel="stylesheet">
+  
+<link rel="stylesheet" href="/css/style.css">
+
+  
+  
+    
+<link rel="stylesheet" href="https://unpkg.com/gitalk/dist/gitalk.css">
+
+  
+  <script src="//cdnjs.cloudflare.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+  <script src="//cdnjs.cloudflare.com/ajax/libs/geopattern/1.2.3/js/geopattern.min.js"></script>
+  <script src="//cdnjs.cloudflare.com/ajax/libs/nprogress/0.2.0/nprogress.min.js"></script>
+  
+    
+<script src="/js/qrious.js"></script>
+
+  
+  
+  
+    
+<script src="https://unpkg.com/gitalk/dist/gitalk.min.js"></script>
+
+  
+  
+  
+    <!-- MathJax support START -->
+    <script type="text/x-mathjax-config">
+      MathJax.Hub.Config({
+        tex2jax: {
+          inlineMath: [ ['$','$'], ["\\(","\\)"]  ],
+          processEscapes: true,
+          skipTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
+        }
+      });
+    </script>
+
+    <script type="text/x-mathjax-config">
+      MathJax.Hub.Queue(function() {
+        var all = MathJax.Hub.getAllJax(), i;
+        for (i=0; i < all.length; i += 1) {
+          all[i].SourceElement().parentNode.className += ' has-jax';
+        }
+      });
+    </script>
+    <script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <!-- MathJax support END -->
+  
+
+
+  
+<meta name="generator" content="Hexo 4.2.0"></head>
+<div class="wechat-share">
+  <img src="http://cdn.zmoyi.com/static/images/logo.png" />
+</div>
+
+  <body>
+    <header class="header fixed-header">
+  <div class="header-container">
+    <a class="home-link" href="/">
+      <div class="logo"></div>
+      <span>Fane'Blog</span>
+    </a>
+    <ul class="right-list">
+      
+        <li class="list-item">
+          
+            <a href="/" class="item-link">Home</a>
+          
+        </li>
+      
+        <li class="list-item">
+          
+            <a href="/tags/" class="item-link">Tags</a>
+          
+        </li>
+      
+        <li class="list-item">
+          
+            <a href="/archive/" class="item-link">Archives</a>
+          
+        </li>
+      
+        <li class="list-item">
+          
+            <a href="/project/" class="item-link">Projects</a>
+          
+        </li>
+      
+        <li class="list-item">
+          
+            <a href="/about/" class="item-link">About</a>
+          
+        </li>
+      
+    </ul>
+    <div class="menu">
+      <span class="icon-bar"></span>
+      <span class="icon-bar"></span>
+      <span class="icon-bar"></span>
+    </div>
+    <div class="menu-mask">
+      <ul class="menu-list">
+        
+          <li class="menu-item">
+            
+              <a href="/" class="menu-link">Home</a>
+            
+          </li>
+        
+          <li class="menu-item">
+            
+              <a href="/tags/" class="menu-link">Tags</a>
+            
+          </li>
+        
+          <li class="menu-item">
+            
+              <a href="/archive/" class="menu-link">Archives</a>
+            
+          </li>
+        
+          <li class="menu-item">
+            
+              <a href="/project/" class="menu-link">Projects</a>
+            
+          </li>
+        
+          <li class="menu-item">
+            
+              <a href="/about/" class="menu-link">About</a>
+            
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+</header>
+
+    <div id="article-banner">
+  <h2>Go并发编程（六）IPC之socket基础</h2>
+  <p class="post-date">2020-04-24</p>
+  <div class="arrow-down">
+    <a href="javascript:;"></a>
+  </div>
+</div>
+<main class="app-body flex-box">
+  <!-- Article START -->
+  <article class="post-article">
+    <section class="markdown-content"><blockquote>
+<p>socket常译为套接字，也是一种IPC方法。但是与其它IPC方法不同的是，它可以通过网络连接让多个进程之间建立通信并相互传递数据，这使得通信双方是否在同一台计算机上变得无关紧要。</p>
+</blockquote>
+<h2 id="socket的基本特性"><a href="#socket的基本特性" class="headerlink" title="socket的基本特性"></a>socket的基本特性</h2><p>大多数操作系统都包含了<code>socket</code>接口的实现，主流以及新兴的编程语言也都支持<code>socket</code>，Go当然也不例外。</p>
+<p>以Linux系统为例，简单说下其<code>socket</code>接口的实现。在Linux中，存在一个名为<code>socket</code>的系统调用，声明如下：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">int</span> <span class="title">socket</span><span class="params">(<span class="keyword">int</span> domain, <span class="keyword">int</span> type, <span class="keyword">int</span> protocol)</span></span>;</span><br></pre></td></tr></table></figure>
+
+<p>该系统调用的功能是创建一个<code>socket</code>实例。它接收3个参数，分别代表这个<code>socket</code>的<strong>通信域、类型和所用协议</strong>。</p>
+<h3 id="socket的通信域"><a href="#socket的通信域" class="headerlink" title="socket的通信域"></a>socket的通信域</h3><p>每个<code>socket</code>都必将存在于一个通信域中，而通信域决定了该<code>socket</code>的地址格式和通信范围。<code>socket</code>通信域参见下表：</p>
+<table>
+<thead>
+<tr>
+<th>通信域</th>
+<th>含义</th>
+<th>地址形式</th>
+<th>通信范围</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>AF_INET</td>
+<td>IPv4域</td>
+<td>IPv4地址</td>
+<td>基于IPv4协议的网络中任意两台计算机上的两个应用程序</td>
+</tr>
+<tr>
+<td>AF_INET6</td>
+<td>IPv6域</td>
+<td>IPv6地址</td>
+<td>基于IPv6协议的网络中任意两台计算机上的两个应用程序</td>
+</tr>
+<tr>
+<td>AF_UNIX</td>
+<td>Unix域</td>
+<td>路径名称</td>
+<td>在同一台计算机上的两个应用程序</td>
+</tr>
+</tbody></table>
+<p>由上表可知，Linux提供的<code>socket</code>通信域有三个，即<code>AF_INET</code>、<code>AF_INET6</code>和<code>AF_UNIX</code>，它们分别代表了IPv4域、IPv6域和Unix域。这三个域的标识符都是以<code>AF_</code>为前缀。AF是address family的缩写，意为<strong>地址族</strong>，这也暗示了每个域的<code>socket</code>地址格式不同。另外，不同的是IPv4域和IPv6域的通信是在网络范围内的，而Unix域的通信则是在单台计算机范围内。</p>
+<h3 id="socket的类型"><a href="#socket的类型" class="headerlink" title="socket的类型"></a>socket的类型</h3><p><code>socket</code>的类型有很多，这些类型及其特性如下表所示：</p>
+<table>
+<thead>
+<tr>
+<th>特性\类型</th>
+<th>SOCK_DGRAM</th>
+<th>SOCK_RAW</th>
+<th>SOCK_SEQPACKET</th>
+<th>SOCK_STREAM</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>数据形式</td>
+<td>数据报</td>
+<td>数据报</td>
+<td>字节流</td>
+<td>字节流</td>
+</tr>
+<tr>
+<td>数据边界</td>
+<td>有</td>
+<td>有</td>
+<td>有</td>
+<td>没有</td>
+</tr>
+<tr>
+<td>逻辑连接</td>
+<td>没有</td>
+<td>没有</td>
+<td>有</td>
+<td>有</td>
+</tr>
+<tr>
+<td>数据有序性</td>
+<td>不能保证</td>
+<td>不能保证</td>
+<td>能够保证</td>
+<td>能够保证</td>
+</tr>
+<tr>
+<td>传输可靠性</td>
+<td>不具备</td>
+<td>不具备</td>
+<td>具备</td>
+<td>具备</td>
+</tr>
+</tbody></table>
+<p><strong>数据形式和数据边界</strong></p>
+<p>数据形式有两种：数据报和字节流。</p>
+<ul>
+<li><p>以数据报为数据形式意味着数据接收方的<code>socket</code>接口程序可以意识到数据的边界，并对它们进行切分，这样就省去了接收方应用程序寻找数据边界和切分数据的工作量。</p>
+</li>
+<li><p>以字节流为数据形式的数据传输实际上传输的是一个字节接着一个字节的串，我们可以把它想像成一个字节数组。一般情况下，字节流并不能体现出哪些字节属于哪个数据包。因此，<code>socket</code>接口程序是无法从中分离出独立的数据包，这一工作只能由数据接收方的应用程序去完成。然而，<code>SOCK_SEQPACKET</code>类型的<code>socket</code>接口程序是例外的。</p>
+</li>
+</ul>
+<blockquote>
+<p>数据边界就是应用程序每次发送字节流片段之间的分界点，这些数据边界信息会随着字节流一同发往数据接收方。数据发送方的<code>socket</code>接口程序可以记录数据边界。数据接收方的<code>socket</code>接口会根据数据边界把字节流切分成若干个字节流片段并按照需要依次传递给应用程序。</p>
+</blockquote>
+<p><strong>逻辑连接</strong></p>
+<p>在面向有连接的<code>socket</code>之间传输数据之前，必须先建立逻辑连接。在连接建好之后，通信双方才能很方便的互相传输数据。并且，由于双方已经暗含了双方的地址，所以在传输数据的时候不必再指定目标地址。</p>
+<p>两个面向有连接的<code>socket</code>之间一旦建立连接，那么它们发送的数据就只能发送到连接的一端。然而，面向无连接的<code>socket</code>则完全不同，这类<code>socket</code>在通信时无需建立连接。它们传输的每个数据包都是独立的，并且会直接发送到网络上。这些数据包中都含有目标地址，因此每个数据包都可能传输至不同的目的地。此外，面向无连接的<code>socket</code>数据流只能是单向的，不能既发送数据又接收数据。</p>
+<p><strong>数据有序性和传输可靠性</strong></p>
+<p>数据的有序性和可靠性与<code>socket</code>是否面向连接有很大关系。正是因为逻辑连接的存在，通信双方才有条件通过一些手段来保证数据发送方发送的数据能够及时、正确、有序的到达数据接收方，并被数据接收方接受。</p>
+<h3 id="socket的所用协议"><a href="#socket的所用协议" class="headerlink" title="socket的所用协议"></a>socket的所用协议</h3><p>在调用系统调用<code>socket</code>的时候，一般会把0作为第三个参数值，其含义是让操作系统内核根据第一个和第二个参数的值自行决定<code>socket</code>所使用的协议，这意味着<code>socket</code>的通信域和类型与所用协议之间是存在对应关系的：</p>
+<table>
+<thead>
+<tr>
+<th>通信域\类型</th>
+<th>SOCK_DGRAM</th>
+<th>SOCK_RAW</th>
+<th>SOCK_SEQPACKET</th>
+<th>SOCK_STREAM</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>AF_INET</td>
+<td>UDP</td>
+<td>IPv4</td>
+<td>SCTP</td>
+<td>TCP或SCTP</td>
+</tr>
+<tr>
+<td>AF_INET6</td>
+<td>UDP</td>
+<td>IPv6</td>
+<td>SCTP</td>
+<td>TCP或SCTP</td>
+</tr>
+<tr>
+<td>AF_UNIX</td>
+<td>有效</td>
+<td>无效</td>
+<td>有效</td>
+<td>有效</td>
+</tr>
+</tbody></table>
+<p>在上表中，TCP（Transmission Control Protocol，传输控制协议）、UDP（User Datagram Protocol，用户数据报协议）和SCTP（Stream Control Transmission Protocol，流控制传输协议）都是<code>TCP/IP</code>协议栈中的传输协议，而IPv4和IPv6则分别代表了<code>TCP/IP</code>协议栈中的网络互连层协议<code>IP</code>（Internet Protocol，网际协议）的第四个版本和第六个版本。</p>
+<p>“有效”表示该通信域和类型的组合会使内核选择某个内部的<code>socket</code>协议。“无效”则表示该通信域和类型的组合是不合法的。</p>
+<p>在Go提供的<code>socket</code>编程API中，也会涉及这些组合，并有一些专门的字面量来表示，在后面会讲到。</p>
+<h3 id="socket的返回值"><a href="#socket的返回值" class="headerlink" title="socket的返回值"></a>socket的返回值</h3><p>在系统调用<code>socket</code>函数没有发生任何错误的情况下，会返回一个<code>int</code>类型的值，该值是<code>socket</code>实例唯一标识符的文件描述符，一旦得到该描述符，就可以调用其它系统操作来进行各种相关操作了，比如绑定和监听端口、发送和接收数据以及关闭<code>socket</code>实例等等。这里就不过多介绍那些系统调用的用法了。</p>
+<h2 id="基于TCP-IP协议栈的socket通信模型"><a href="#基于TCP-IP协议栈的socket通信模型" class="headerlink" title="基于TCP/IP协议栈的socket通信模型"></a>基于TCP/IP协议栈的socket通信模型</h2><p>前面我们说通过系统调用来使用操作系统提供的<code>socket</code>接口，其实<code>socket</code>接口程序与<code>TCP/IP</code>协议栈的实现程序一样，是Linux内核的一部分。</p>
+<p>socket接口既可以提供网络中不同计算机上多个应用程序间的通信支持，也可以成为单台计算机上多个应用程序间的通信手段。不过使用<code>socket</code>接口的绝大多数情况都是为了在网络中进行通信，这样的通信是基于<code>TCP/IP</code>协议栈的。<code>socket</code>接口与<code>TCP/IP</code>协议栈、操作系统内核的关系如下图所示。</p>
+<img src="http://cdn.zmoyi.com/static/images/scoket接口与TCP_IP协议栈、操作系统内核的关系.jpg">
+
+<p>在<code>socket</code>通信中，一般会包含了两个概念上独立的程序，即服务端和客户端程序。服务端程序会在一个给定的端口是监听<code>TCP</code>连接，而客户端程序会试图与这个服务端建立<code>TCP</code>连接并进行通信。下图是客户端和服务端的简单通信流程图：</p>
+<img src="http://cdn.zmoyi.com/static/images/TCP通信简单流程.jpg">
+
+<p>这张流程图展现了客户端与服务端通过操作系统的<code>socket</code>接口建立<code>TCP</code>连接并进行简单通信的一般情形。前面说过<code>TCP</code>协议是一种面向有连接的协议，当客户端和服务端建立好连接之后，在数据传输的过程中就不用重复建立连接了，直接发送和接收数据即可，所以虚线框中的流程，一般会循环多次。</p>
+<h2 id="常用API"><a href="#常用API" class="headerlink" title="常用API"></a>常用API</h2><p>为了使用Go实现上面的服务端和客户端程序，这里先介绍一下标准库代码包<code>net</code>中的常用API。</p>
+<h3 id="服务端"><a href="#服务端" class="headerlink" title="服务端"></a>服务端</h3><p>服务端首先会用到下面这个函数：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">Listen</span><span class="params">(network, address <span class="keyword">string</span>)</span> <span class="params">(Listener, error)</span></span></span><br></pre></td></tr></table></figure>
+
+<p>这个函数是用于获取监听器，它接受两个参数。</p>
+<ul>
+<li><p><strong><code>network</code>的含义是以何种协议监听给定的地址</strong>，在Go中，这些协议由一些字符串字面量来表示：</p>
+<ul>
+<li>“tcp”：代表 TCP 协议，其基于的 IP 协议的版本根据参数address的值自适应。</li>
+<li>“tcp4”：代表基于 IP 协议第四版的 TCP 协议。</li>
+<li>“tcp6”：代表基于 IP 协议第六版的 TCP 协议。</li>
+<li>“udp”：代表 UDP 协议，其基于的 IP 协议的版本根据参数address的值自适应。</li>
+<li>“udp4”：代表基于 IP 协议第四版的 UDP 协议。</li>
+<li>“udp6”：代表基于 IP 协议第六版的 UDP 协议。</li>
+<li>“unix”：代表 Unix 通信域下的一种内部 socket 协议，以 SOCK_STREAM 为 socket 类型。</li>
+<li>“unixgram”：代表 Unix 通信域下的一种内部 socket 协议，以 SOCK_DGRAM 为 socket 类型。</li>
+<li>“unixpacket”：代表 Unix 通信域下的一种内部 socket 协议，以 SOCK_SEQPACKET 为 socket 类型。</li>
+</ul>
+<p>这些字面量就是上面在讲Linux的系统调用<code>socket</code>函数的所用协议是提到的字面量。</p>
+</li>
+<li><p><strong><code>address</code>的含义表示当前程序在网络中的标识</strong>，格式是“host:port”，也就是我们常说的IP和端口号。例如：127.0.0.1:8080。</p>
+</li>
+</ul>
+<p><code>net.Listen</code>函数被调用之后，有两个返回值，第一个返回值是<code>net.Listener</code>类型的，它代表的就是监听器。第二个返回值是一个<code>error</code>类型的值，代表获取监听器是否发生错误，记得一定要先判断该值是否为<code>nil</code>。</p>
+<p>如果获取监听器没有问题的话，就可以等待客户端的连接请求了，方法如下：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">conn, err := listener.Accept()</span><br></pre></td></tr></table></figure>
+
+<p>当调用监听器的<code>Accept</code>方法时，流程会被阻塞，直到某个客户端与当前程序建立<code>TCP</code>连接。此时<code>Accept</code>方法会返回两个返回值：第一个代表当前<code>TCP</code>连接的<code>net.Conn</code>类型的值，就是通信建立成功之后的连接。第二个还是一个<code>error</code>类型的值，表示在建立连接的过程中是否发生错误。</p>
+<h3 id="客户端"><a href="#客户端" class="headerlink" title="客户端"></a>客户端</h3><p><code>net</code>代码包中的<code>Dial</code>函数用于向指定的网络地址发送连接建立申请，它的声明如下：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">Dial</span><span class="params">(network, address <span class="keyword">string</span>)</span> <span class="params">(Conn, error)</span></span></span><br></pre></td></tr></table></figure>
+
+<p>函数<code>net.Dial</code>函数也接受两个参数：</p>
+<ul>
+<li><p>其中，<code>network</code>与<code>net.Listen</code>函数的第一个参数含义非常类似，但是它拥有更多可选值，因为在发送数据之前不一定要先建立连接。</p>
+</li>
+<li><p>第二个参数<code>address</code>与<code>net.Listen</code>函数的第二个参数完全一致。如果相与前面刚刚监听的服务端程序连接的话，那么这个参数就应该是服务端的地址，这不难理解。</p>
+</li>
+</ul>
+<p>这里你可能会问：<strong>客户端自己的地址在哪里给出呢？</strong>答案是根本不用给出。客户端的使用端口号可以由应用程序指定，也可以由操作系统内核动态分配。</p>
+<p>函数<code>net.Dial</code>函数也有两个返回值：</p>
+<ul>
+<li><p>一个是<code>net.Conn</code>类型的值，就是我们建立好的连接。</p>
+</li>
+<li><p>一个是<code>error</code>类型的值，如果建立连接的过程顺利的话，这个值应该是nil。</p>
+</li>
+</ul>
+<h3 id="超时时间"><a href="#超时时间" class="headerlink" title="超时时间"></a>超时时间</h3><p>另外再说一点，要知道，网络中是存在延时现象的。因此，在收到另一方的有效响应（无论是连接成功或失败）之前，发送连接请求的往往会等待一段时间。例如，客户端程序会在调用<code>net.Dail</code>这行代码上阻塞。在超过这个等待时间后，函数的执行就会结束并返回相应的<code>error</code>类型的值。因此，这类等待时间也常称为<strong>超时（timeout）时间</strong>。</p>
+<p>不同操作系统对基于不同协议的连接请求的超时时间都有不同的设定。例如，在Linux操作系统内核中，把基于<code>TCP</code>协议的连接请求的超时时间设定为75s。</p>
+<p>在很多应用场景中，固定不变的超时时间往往无法满足需求。因此操作系统内核也提供了改变这类时间的接口，在Go的<code>net</code>代码包中也有对应的API。</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">DialTimeout</span><span class="params">(network, address <span class="keyword">string</span>, timeout time.Duration)</span> <span class="params">(Conn, error)</span></span></span><br></pre></td></tr></table></figure>
+
+<p><code>net.DialTimeout</code>函数的第三个参数，就是用于设定超时时间的，单位是纳秒。</p>
+<h3 id="连接"><a href="#连接" class="headerlink" title="连接"></a>连接</h3><p>到这里，我们学习的这几个API足以在客户端和服务端建立起<code>TCP</code>连接了。当连接建立成功之后，不论是客户端还是服务端程序，都会获取一个<code>net.Conn</code>类型的值，也就是我们说的建立好的连接。</p>
+<p><code>net.Conn</code>是一个接口类型，在它的方法集合中包含了8个方法，它们定义了可以在一个连接上做的所有事情。接下来，我们对它们逐一说明：</p>
+<ul>
+<li><p><strong>Read方法</strong>：该方法接受一个<code>[]byte</code>类型的参数，该参数用来相当于一个用来存放从连接上接收到数据的容器，它的长度完全由我们自定义。<code>Read</code>方法会把它当成空的容器填满，该容器的相应位置上的原元素将会被替换。所以，我们每次应该让这个容器在填充之前保持绝对干净。</p>
+<p><code>Read</code>的第一个返回值n代表本次操作实际读取到的字节个数，也可以把它理解为<code>Read</code>方法向参数值中填充的字节个数。可以这样使用它：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">b := <span class="built_in">make</span>([]<span class="keyword">byte</span>, <span class="number">10</span>)</span><br><span class="line">n, err := conn.Read(b)</span><br><span class="line">content := <span class="keyword">string</span>(b[:n])</span><br></pre></td></tr></table></figure>
+
+<p>如果<code>socket</code>编程API程序在从<code>socket</code>的接收缓冲区中读取数据时发现<code>TCP</code>连接已经被另一端关闭了，就会立即返回一个error类型的值。这个error类型的值与<code>io.EOF</code>是相等的。其中<strong><code>io.EOF</code>象征文件内容的完结</strong>，若该值为<code>io.EOF</code>则意味着在此<code>TCP</code>连接之上再无可读取的数据。也可以说，该<code>TCP</code>连接已经无用，可以关闭了。</p>
+</li>
+<li><p><strong>Write方法</strong>：write方法用于向<code>socket</code>的发送缓冲区写入数据，方法声明如下：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">Write(b []<span class="keyword">byte</span>) (n <span class="keyword">int</span>, err error)</span><br></pre></td></tr></table></figure>
+
+<p>该方法接受一个字节数组类型的参数，返回一个<code>int</code>类型和<code>error</code>类型的值，其中<code>n</code>代表本次实际写入的字节数量。</p>
+</li>
+<li><p><strong>Close方法</strong>：<code>Close</code>方法会关闭当前连接，它不接受任何参数并返回一个<code>error</code>类型的值。调用该方法之后，对该连接值上的<code>Read</code>方法、<code>Write</code>方法或<code>Close</code>方法的任何调用都会使它们立即返回一个<code>error</code>类型值。</p>
+<p>另外，如果此时<code>Close</code>方法，<code>Read</code>方法或<code>Write</code>方法正在被调用且还未执行结束，那么它们也会立即结束并返回一个不为<code>nil</code>的<code>error</code>类型的值，即使它们处于阻塞状态，也会这样。</p>
+</li>
+<li><p><strong>LocalAddr和RemoteAddr</strong>：它们都不接受任何参数并返回一个<code>net.Addr</code>类型的结果。其结果值代表了参与当前通信的某一端在网络中的地址。显然，<code>LocalAddr</code>方法的返回值代表了本地地址，而<code>RemoteAddr</code>方法的返回值代表了远程地址。</p>
+<p><code>net.Addr</code>类型是一个接口类型，它有两个方法<code>Network</code>和<code>String</code>。前者会返回当前连接使用的协议名称，例如：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">conn.LocalAddr.Network()</span><br></pre></td></tr></table></figure>
+
+<p>会返回一个类型”tcp”的值。</p>
+<p><code>String</code>方法会返回一个地址，这个地址与前面说到的各个通信域下的地址表现形式和格式是对应的。如果基于<code>TCP</code>协议的服务端程序，它的地址格式就是“host:port”，比如：“127.0.0.1:8080”。</p>
+</li>
+<li><p><strong>SetDeadline、SetReadDeadline和SetWriteDeadline</strong>：这三个方法都只接受一个<code>time.Time</code>类型值作为参数，并返回一个<code>error</code>类型的结果值。</p>
+<p><code>SetDeadline</code>方法会设定当前连接上的I/O操作（包括但不限于读和写）的超时时间。<strong>注意，这里的超时时间是一个绝对时间！</strong>也就是说，如果调用<code>SetDeadline</code>方法之后的相关I/O操作到达此超时时间还没完成，那么它们就会立即结束并返回一个非<code>nil</code>的错误值。这个<code>error</code>类型的值被预置在了代码包中，其提示信息为“i/o timeout”。还有，当你以循环的方式从一个连接上读取数据时，需要在每次读取的数据之前都重新设定一次，因为这个时间是绝对时间，从设定的那一刻开始计时，如果不每次重新设定，就有可能在循环未结束的时候时间就超时了。</p>
+<p>另外，如果想取消超时，只需传入<code>time.Time</code>类型的零值，即传入<code>time.Time{}</code>即可。</p>
+<p><code>SetReadDeadline</code>和<code>SetWriteDeadline</code>它们俩分别针对于读操作（与连接的<code>Read</code>方法的调用对应）和写操作（与连接的<code>Write</code>方法的调用对应）。对于写操作，有一个问题需要明确，就是即使一个写操作超时了，也不一定表示这个写操作完全没有成功。因为在超时之前，<code>Write</code>方法可能已经将一部分数据写入<code>socket</code>的缓冲区了。也就是说，即使<code>Write</code>方法因为超时时间而被迫停止，那它的第一个返回值也可能大于0，说明还是有一部分数据被写入了。</p>
+<p><code>SetDeadline</code>调用相当于先后以同样的参数调用<code>SetReadDeadline</code>和<code>SetWriteDeadline</code>方法，粒度不同，可以根据实际情况使用。</p>
+</li>
+</ul>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>这篇文章我们主要学习与socket有关的知识，包括socket的基本特性：通信域、类型、所用协议等，还额外介绍了Linux中socket的通信模型， 最后还介绍了在Go中支持socket的相关API。通过这些，相信我们已经大致了解了socket，后面我会通过一个具体的例子贯穿这些知识，加深理解。</p>
+<h2 id="链接"><a href="#链接" class="headerlink" title="链接"></a>链接</h2><p><a href="http://zmoyi.com/2020/04/24/GoConcurrent6-IPCSocket2/">具体的例子</a></p>
+</section>
+    <!-- Tags START -->
+    
+      <div class="tags">
+        <span>Tags:</span>
+        
+  <a href="/tags#Go" >
+    <span class="tag-code">Go</span>
+  </a>
+
+      </div>
+    
+    <!-- Tags END -->
+    <!-- NAV START -->
+    
+  <div class="nav-container">
+    <!-- reverse left and right to put prev and next in a more logic postition -->
+    
+      <a class="nav-left" href="/2020/04/22/GoConcurrent5-IPCSignal/">
+        <span class="nav-arrow">← </span>
+        
+          Go并发编程（五）IPC之信号
+        
+      </a>
+    
+    
+  </div>
+
+    <!-- NAV END -->
+    <!-- 打赏 START -->
+    
+      <div class="money-like">
+        <div class="reward-btn">
+          赏
+          <span class="money-code">
+            <span class="alipay-code">
+              <div class="code-image"></div>
+              <b>使用支付宝打赏</b>
+            </span>
+            <span class="wechat-code">
+              <div class="code-image"></div>
+              <b>使用微信打赏</b>
+            </span>
+          </span>
+        </div>
+        <p class="notice">若你觉得我的文章对你有帮助，欢迎点击上方按钮对我打赏</p>
+      </div>
+    
+    <!-- 打赏 END -->
+    <!-- 二维码 START -->
+    
+      <div class="qrcode">
+        <canvas id="share-qrcode"></canvas>
+        <p class="notice">扫描二维码，分享此文章</p>
+      </div>
+    
+    <!-- 二维码 END -->
+    
+      <!-- Gitalk START -->
+      <div id="gitalk-container"></div>
+      <!-- Gitalk END -->
+    
+  </article>
+  <!-- Article END -->
+  <!-- Catalog START -->
+  
+    <aside class="catalog-container">
+  <div class="toc-main">
+    <strong class="toc-title">目录</strong>
+    
+      <ol class="toc-nav"><li class="toc-nav-item toc-nav-level-2"><a class="toc-nav-link" href="#socket的基本特性"><span class="toc-nav-text">socket的基本特性</span></a><ol class="toc-nav-child"><li class="toc-nav-item toc-nav-level-3"><a class="toc-nav-link" href="#socket的通信域"><span class="toc-nav-text">socket的通信域</span></a></li><li class="toc-nav-item toc-nav-level-3"><a class="toc-nav-link" href="#socket的类型"><span class="toc-nav-text">socket的类型</span></a></li><li class="toc-nav-item toc-nav-level-3"><a class="toc-nav-link" href="#socket的所用协议"><span class="toc-nav-text">socket的所用协议</span></a></li><li class="toc-nav-item toc-nav-level-3"><a class="toc-nav-link" href="#socket的返回值"><span class="toc-nav-text">socket的返回值</span></a></li></ol></li><li class="toc-nav-item toc-nav-level-2"><a class="toc-nav-link" href="#基于TCP-IP协议栈的socket通信模型"><span class="toc-nav-text">基于TCP&#x2F;IP协议栈的socket通信模型</span></a></li><li class="toc-nav-item toc-nav-level-2"><a class="toc-nav-link" href="#常用API"><span class="toc-nav-text">常用API</span></a><ol class="toc-nav-child"><li class="toc-nav-item toc-nav-level-3"><a class="toc-nav-link" href="#服务端"><span class="toc-nav-text">服务端</span></a></li><li class="toc-nav-item toc-nav-level-3"><a class="toc-nav-link" href="#客户端"><span class="toc-nav-text">客户端</span></a></li><li class="toc-nav-item toc-nav-level-3"><a class="toc-nav-link" href="#超时时间"><span class="toc-nav-text">超时时间</span></a></li><li class="toc-nav-item toc-nav-level-3"><a class="toc-nav-link" href="#连接"><span class="toc-nav-text">连接</span></a></li></ol></li><li class="toc-nav-item toc-nav-level-2"><a class="toc-nav-link" href="#总结"><span class="toc-nav-text">总结</span></a></li><li class="toc-nav-item toc-nav-level-2"><a class="toc-nav-link" href="#链接"><span class="toc-nav-text">链接</span></a></li></ol>
+    
+  </div>
+</aside>
+  
+  <!-- Catalog END -->
+</main>
+
+<script>
+  (function () {
+    var url = 'http://zmoyi.com/2020/04/24/GoConcurrent6-IPCSocket1/';
+    var banner = ''
+    if (banner !== '' && banner !== 'undefined' && banner !== 'null') {
+      $('#article-banner').css({
+        'background-image': 'url(' + banner + ')'
+      })
+    } else {
+      $('#article-banner').geopattern(url)
+    }
+    $('.header').removeClass('fixed-header')
+
+    // error image
+    $(".markdown-content img").on('error', function() {
+      $(this).attr('src', 'http://file.muyutech.com/error-img.png')
+      $(this).css({
+        'cursor': 'default'
+      })
+    })
+
+    // zoom image
+    $(".markdown-content img").on('click', function() {
+      var src = $(this).attr('src')
+      if (src !== 'http://file.muyutech.com/error-img.png') {
+        var imageW = $(this).width()
+        var imageH = $(this).height()
+
+        var zoom = ($(window).width() * 0.95 / imageW).toFixed(2)
+        zoom = zoom < 1 ? 1 : zoom
+        zoom = zoom > 2 ? 2 : zoom
+        var transY = (($(window).height() - imageH) / 2).toFixed(2)
+
+        $('body').append('<div class="image-view-wrap"><div class="image-view-inner"><img src="'+ src +'" /></div></div>')
+        $('.image-view-wrap').addClass('wrap-active')
+        $('.image-view-wrap img').css({
+          'width': `${imageW}`,
+          'transform': `translate3d(0, ${transY}px, 0) scale3d(${zoom}, ${zoom}, 1)`
+        })
+        $('html').css('overflow', 'hidden')
+
+        $('.image-view-wrap').on('click', function() {
+          $(this).remove()
+          $('html').attr('style', '')
+        })
+      }
+    })
+  })();
+</script>
+
+
+  <script>
+    var qr = new QRious({
+      element: document.getElementById('share-qrcode'),
+      value: document.location.href
+    });
+  </script>
+
+
+
+
+
+  <script type="text/javascript">
+    var gitalk = new Gitalk({
+      clientID: '595f268d984e0123456f',
+      clientSecret: 'e4c1799bc7a82448653f758927992c6217beb7cb',
+      id: window.location.pathname,
+      repo: 'fanezhao.github.io',
+      owner: 'fanezhao',
+      admin: 'fanezhao'
+    })
+    gitalk.render('gitalk-container')
+  </script>
+
+
+
+
+    <div class="scroll-top">
+  <span class="arrow-icon"></span>
+</div>
+    <footer class="app-footer">
+  <p class="copyright">
+    &copy;2020 <a href="https://github.com/fanezhao" target="_blank" rel="noopener">Fane</a><span> | 浙ICP备20012854号</span>
+    <br>
+    PV: <span id="busuanzi_value_site_pv"></span> |
+    UV: <span id="busuanzi_value_site_uv"></span> |
+    PPV: <span id="busuanzi_value_page_pv"></span>
+  </p>
+</footer>
+
+<script>
+  function async(u, c) {
+    var d = document, t = 'script',
+      o = d.createElement(t),
+      s = d.getElementsByTagName(t)[0];
+    o.src = u;
+    if (c) { o.addEventListener('load', function (e) { c(null, e); }, false); }
+    s.parentNode.insertBefore(o, s);
+  }
+</script>
+<script>
+  async("//cdnjs.cloudflare.com/ajax/libs/fastclick/1.0.6/fastclick.min.js", function(){
+    FastClick.attach(document.body);
+  })
+</script>
+
+<script>
+  var hasLine = 'true';
+  async("//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/highlight.min.js", function(){
+    $('figure pre').each(function(i, block) {
+      var figure = $(this).parents('figure');
+      if (hasLine === 'false') {
+        figure.find('.gutter').hide();
+      }
+      var lang = figure.attr('class').split(' ')[1] || 'code';
+      var codeHtml = $(this).html();
+      var codeTag = document.createElement('code');
+      codeTag.className = lang;
+      codeTag.innerHTML = codeHtml;
+      $(this).attr('class', '').empty().html(codeTag);
+      figure.attr('data-lang', lang.toUpperCase());
+      hljs.highlightBlock(block);
+    });
+  })
+</script>
+<!-- Baidu Tongji -->
+
+<script>
+    var _baId = '1da5032819b12da8d4c1fb82c6f21ffa';
+    // Originial
+    var _hmt = _hmt || [];
+    (function() {
+      var hm = document.createElement("script");
+      hm.src = "//hm.baidu.com/hm.js?" + _baId;
+      var s = document.getElementsByTagName("script")[0];
+      s.parentNode.insertBefore(hm, s);
+    })();
+</script>
+
+<!-- busuanzi -->
+<script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+
+<script src="/js/script.js"></script>
+
+  </body>
+</html>
