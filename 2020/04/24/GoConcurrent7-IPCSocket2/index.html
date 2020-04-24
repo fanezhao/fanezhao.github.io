@@ -10,7 +10,7 @@
   
   <title>
     
-      Hexo（二）整合七牛云图床 | Fane&#39;Blog
+      Go并发编程（七）IPC之socket举个粟子 | Fane&#39;Blog
     
   </title>
   <link href="//cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css" rel="stylesheet">
@@ -155,8 +155,8 @@
 </header>
 
     <div id="article-banner">
-  <h2>Hexo（二）整合七牛云图床</h2>
-  <p class="post-date">2020-04-15</p>
+  <h2>Go并发编程（七）IPC之socket举个粟子</h2>
+  <p class="post-date">2020-04-24</p>
   <div class="arrow-down">
     <a href="javascript:;"></a>
   </div>
@@ -164,43 +164,37 @@
 <main class="app-body flex-box">
   <!-- Article START -->
   <article class="post-article">
-    <section class="markdown-content"><h2 id="注册七牛云"><a href="#注册七牛云" class="headerlink" title="注册七牛云"></a>注册七牛云</h2><p>如果还没有七牛云账号，需要先申请，通过<a href="https://portal.qiniu.com/signup?code=1hdcuqdt28nyq" target="_blank" rel="noopener">邀请链接</a>注册的同时，我也可以获得额外的5GB流量。</p>
-<p>注册认证完成之后，登录七牛云官网，开通对象存储，然后新建空间即可。</p>
-<blockquote>
-<p>在新建空间的时候，如果没有特别私密图片的话，访问控制建议选择<strong>公开</strong>，因为选择私有的情况下，外部访问图片相对来说会麻烦点。</p>
+    <section class="markdown-content"><blockquote>
+<p>在上一篇文章<a href="http://zmoyi.com/2020/04/24/GoConcurrent6-IPCSocket1/">IPC之socket基础</a>中，我们学习了socket的基础概念，也一并学习了在Go中相关API。这篇文章，我们主要通过详细案例来加深对上篇文章理解。</p>
+<p>之所以没有在上一篇文章中说这个粟子，主要是害怕内容太长，容易引起不适（太长不看系列）。</p>
 </blockquote>
-<p>空间创建完成之后，系统会随机分配一个测试域名，就是通过这个域名来访问资源。注意，此域名有效期只有一个月。所以没有域名的小伙伴，建议注册一个域名，并且及时备案。然后将域名改为自己的域名。</p>
-<h2 id="安装七牛云插件"><a href="#安装七牛云插件" class="headerlink" title="安装七牛云插件"></a>安装七牛云插件</h2><p>1、进入到博客目录下，执行下面命令，等待安装完成即可。</p>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">$</span><span class="bash"> npm install hexo-qiniu-sync --save</span></span><br></pre></td></tr></table></figure>
-
-<p>2、配置七牛云</p>
-<p>在博客根目录下的 _config.yml 文件中添加如下配置：</p>
-<figure class="highlight yaml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 七牛</span></span><br><span class="line"><span class="attr">qiniu:</span></span><br><span class="line">  <span class="attr">offline:</span> <span class="literal">false</span></span><br><span class="line">  <span class="attr">sync:</span> <span class="literal">true</span></span><br><span class="line">  <span class="attr">bucket:</span> <span class="string">bucket_name</span></span><br><span class="line">  <span class="comment"># secret_file: sec/qn.json or C:</span></span><br><span class="line">  <span class="attr">access_key:</span> <span class="string">AccessKey</span></span><br><span class="line">  <span class="attr">secret_key:</span> <span class="string">SecretKey</span></span><br><span class="line">  <span class="attr">dirPrefix:</span> <span class="string">static</span></span><br><span class="line">  <span class="attr">urlPrefix:</span> <span class="string">http://bucket_name.qiniudn.com/static</span></span><br><span class="line">  <span class="attr">up_host:</span> <span class="string">http://upload.qiniu.com</span></span><br><span class="line">  <span class="attr">local_dir:</span> <span class="string">static</span></span><br><span class="line">  <span class="attr">update_exist:</span> <span class="literal">true</span></span><br><span class="line">  <span class="attr">image:</span> </span><br><span class="line">    <span class="attr">folder:</span> <span class="string">images</span></span><br><span class="line">    <span class="attr">extend:</span> </span><br><span class="line">  <span class="attr">js:</span></span><br><span class="line">    <span class="attr">folder:</span> <span class="string">js</span></span><br><span class="line">  <span class="attr">css:</span></span><br><span class="line">    <span class="attr">folder:</span> <span class="string">css</span></span><br></pre></td></tr></table></figure>
-
-<p>其中<code>access_key</code>和<code>secret_key</code>两个密钥在个人中心，密钥管理中。其它配置参数，可以参考<a href="https://github.com/gyk001/hexo-qiniu-sync" target="_blank" rel="noopener">官方文档</a>。</p>
-<h2 id="使用插件"><a href="#使用插件" class="headerlink" title="使用插件"></a>使用插件</h2><h3 id="同步资源"><a href="#同步资源" class="headerlink" title="同步资源"></a>同步资源</h3><p>配置完成之后，启动本地服务器：</p>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">$</span><span class="bash"> hexo s</span></span><br></pre></td></tr></table></figure>
-
-<p>启动服务之后，会自动生成配置中<code>local_dir</code>指定的的文件夹。然后把你需要上传的静态资源存放里面，再使用同步命令：</p>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">$</span><span class="bash"> hexo qiniu sync	<span class="comment"># 同步静态资源到七牛空间。可以简写成：hexo qiniu s</span></span></span><br></pre></td></tr></table></figure>
-
-<p>或</p>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">$</span><span class="bash"> hexo qiniu sync2 <span class="comment"># 同步静态资源到七牛空间，且会同步上传那些本地与七牛空间有差异的文件。可以简写成：hexo qiniu s2</span></span></span><br></pre></td></tr></table></figure>
-
-<p>命令会扫描<code>local_dir</code>目录下的文件，同步至七牛空间。此时，就可以在七牛云的个人空间中看到这些静态资源了。</p>
-<h3 id="如何使用"><a href="#如何使用" class="headerlink" title="如何使用"></a>如何使用</h3><p>在我们用<code>markdown</code>编写博客的时候，使用下面语法即可使用：</p>
-<figure class="highlight markdown"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">&#123;% qnimg test.png %&#125;</span><br></pre></td></tr></table></figure>
-
-<p>其中<code>test.png</code>就是你上传的静态资源。</p>
-<p>更完整的使用方法请见<a href="https://github.com/gyk001/hexo-qiniu-sync" target="_blank" rel="noopener">官方文档</a>。</p>
+<h2 id="粟子功能"><a href="#粟子功能" class="headerlink" title="粟子功能"></a>粟子功能</h2><p>该示例包含了服务端和客户端程序，它们以网络和TCP协议作为通信的基础。服务端程序功能可以概括为：接收客户端程序的请求，计算请求数据的立方根，并把结果返回给客户端程序。细节如下：</p>
+<ul>
+<li>需要根据事先约定好的数据边界把接收到的数据切分成数据块。</li>
+<li>仅可接受类型为<code>int32</code>表示的请求数据块。对于不符合要求的数据块，要生成错误信息并返回给客户端程序。</li>
+<li>对于每个符合要求的数据块，需要计算它们的立方根。生成结果描述符并返给客户端程序。</li>
+<li>需要鉴别闲置的通信连接并主动关闭它们。闲置的连接紧鉴别依据：在过去的10s内，没有任何数据经该连接传送到服务端。这可以在一定程度是节约相关资源。</li>
+</ul>
+<p>客户端的功能相对简单一些，可以概括为：向服务端发送若干实为整数的数据请求，接收服务器返回的响应并记录他们。细节如下：</p>
+<ul>
+<li>发送给服务端的每块请求数据都带有约定好的数据边界。</li>
+<li>需要根据事先约定好的数据边界把接收到的响应切分成数据块。</li>
+<li>在获得所有期望的响应数据之后，应该及时关闭连接以节省资源。</li>
+<li>需要严格限制耗时，从开始向服务端程序发送数据到接收到所有期望的响应数据，其耗时不应该过过眼超过5s，否则在报告超时错误之后关闭连接。这实际上是对服务端程序的响应速度的检验。</li>
+</ul>
+<h2 id="粟子代码"><a href="#粟子代码" class="headerlink" title="粟子代码"></a>粟子代码</h2><p>这个粟子的代码不少，干脆就不在这里展示了，放在了我的Github上，链接在最下面，有兴趣可以点击查看。</p>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>总结还是要总结一下的，这章主要就是通过举例来加深对<code>socket</code>的理解，以及在Go中与<code>socket</code>相关API的使用。</p>
+<p>在Go标准库中，一些实现了某种网络通信功能的代码包都是以<code>net</code>代码包所提供的<code>socket</code>编程API为基础的。其中最有代表性的就是<code>net/http</code>代码包，它以此为基础实现了<code>TCP/IP</code>协议栈的应用层协议<code>HTTP</code>，并提供了非常好用的API。它可以满足大多数应用程序的编写。</p>
+<p>除了<code>net</code>代码包之外，标准库中<code>net/rpc</code>包的API为我们提供了在两个Go程序之间建立通信和交换数据的另一种方式，这种方式也称<strong>远程过程调用（Remote Procedure Call）</strong>。这个代码包中的程序也是基于<code>TCP/IP</code>协议栈的，它们也用到了<code>net</code>包以及<code>net/http</code>包提供的API。</p>
+<h2 id="链接"><a href="#链接" class="headerlink" title="链接"></a>链接</h2><p><a href="https://github.com/fanezhao/GoConcurrent/blob/master/chapter3/socket/tcp_socket.go" target="_blank" rel="noopener">举个粟子</a>，注释超丰富。</p>
 </section>
     <!-- Tags START -->
     
       <div class="tags">
         <span>Tags:</span>
         
-  <a href="/tags#Hexo" >
-    <span class="tag-code">Hexo</span>
+  <a href="/tags#Go" >
+    <span class="tag-code">Go</span>
   </a>
 
       </div>
@@ -211,20 +205,13 @@
   <div class="nav-container">
     <!-- reverse left and right to put prev and next in a more logic postition -->
     
-      <a class="nav-left" href="/2020/04/13/Hexo1-DeploySelfServer/">
+      <a class="nav-left" href="/2020/04/24/GoConcurrent6-IPCSocket1/">
         <span class="nav-arrow">← </span>
         
-          Hexo（一）搭建个人博客
+          Go并发编程（六）IPC之socket基础
         
       </a>
     
-    
-      <a class="nav-right" href="/2020/04/16/GoConcurrent1-ConcurrentBase/">
-        
-          Go并发编程（一）并发编程基础
-        
-        <span class="nav-arrow"> →</span>
-      </a>
     
   </div>
 
@@ -270,7 +257,7 @@
   <div class="toc-main">
     <strong class="toc-title">目录</strong>
     
-      <ol class="toc-nav"><li class="toc-nav-item toc-nav-level-2"><a class="toc-nav-link" href="#注册七牛云"><span class="toc-nav-text">注册七牛云</span></a></li><li class="toc-nav-item toc-nav-level-2"><a class="toc-nav-link" href="#安装七牛云插件"><span class="toc-nav-text">安装七牛云插件</span></a></li><li class="toc-nav-item toc-nav-level-2"><a class="toc-nav-link" href="#使用插件"><span class="toc-nav-text">使用插件</span></a><ol class="toc-nav-child"><li class="toc-nav-item toc-nav-level-3"><a class="toc-nav-link" href="#同步资源"><span class="toc-nav-text">同步资源</span></a></li><li class="toc-nav-item toc-nav-level-3"><a class="toc-nav-link" href="#如何使用"><span class="toc-nav-text">如何使用</span></a></li></ol></li></ol>
+      <ol class="toc-nav"><li class="toc-nav-item toc-nav-level-2"><a class="toc-nav-link" href="#粟子功能"><span class="toc-nav-text">粟子功能</span></a></li><li class="toc-nav-item toc-nav-level-2"><a class="toc-nav-link" href="#粟子代码"><span class="toc-nav-text">粟子代码</span></a></li><li class="toc-nav-item toc-nav-level-2"><a class="toc-nav-link" href="#总结"><span class="toc-nav-text">总结</span></a></li><li class="toc-nav-item toc-nav-level-2"><a class="toc-nav-link" href="#链接"><span class="toc-nav-text">链接</span></a></li></ol>
     
   </div>
 </aside>
@@ -280,7 +267,7 @@
 
 <script>
   (function () {
-    var url = 'http://zmoyi.com/2020/04/15/Hexo2-QiniuPic/';
+    var url = 'http://zmoyi.com/2020/04/24/GoConcurrent7-IPCSocket2/';
     var banner = ''
     if (banner !== '' && banner !== 'undefined' && banner !== 'null') {
       $('#article-banner').css({
