@@ -82,7 +82,7 @@
       
         <li class="list-item">
           
-            <a href="/" class="item-link">Home</a>
+            <a href="/" class="item-link active">Home</a>
           
         </li>
       
@@ -121,7 +121,7 @@
         
           <li class="menu-item">
             
-              <a href="/" class="menu-link">Home</a>
+              <a href="/" class="menu-link mobile-active">Home</a>
             
           </li>
         
@@ -154,88 +154,57 @@
   </div>
 </header>
 
-    <div id="article-banner">
-  <h2>Archives</h2>
-  <p class="post-date">文章归档</p>
+    <main class="app-body">
+  
+    <article class="article-card">
+      <h2 class="article-head">
+        <a href="/2020/04/13/Hexo1-DeploySelfServer/">Hexo（一）搭建个人博客</a>
+      </h2>
+      <p class="article-date">2020年4月13日</p>
+      
+        
+  <a href="/tags#Hexo" >
+    <span class="tag-code">Hexo</span>
+  </a>
+
+      
+      <div class="article-summary">
+        
+          基础环境
+本地环境：macOS Catalina 10.15.4
+Nodejs
+Git
+
+
+个人服务器：华为云 CentOS Linux release 7.7.1908 (Core)
+Docker
+Nginx
+Git
+
+
+
+
+本地环境搭建一、安装Node和Git
+1、Macos 安装Nod ...
+        
+      </div>
+      <a class="more" href="/2020/04/13/Hexo1-DeploySelfServer/">Read more</a>
+    </article>
+  
+
+  
+    <div class="guide-pager">
+  
+    <a href="/"><span class="page-arrow">← </span>Prev</a>
+  
+  
+    <a class="unvisible" href="/">Next <span class="page-arrow">→</span></a>
+  
 </div>
-<main class="app-body" id="archives">
-  
-  
-  
-    <section class="time-section">
-  <h1 class="section-year">
-    2020
-  </h1>
-  <div class="section-list">
-    
-    
-      <div class="section-list-item">
-        <a href="/2020/05/01/GoConcurrent9-SyncSecond/" class="archive-title">Go并发编程（九）再看同步问题</a>
-        <p class="archive-date">05-01</p>
-      </div>
-    
-      <div class="section-list-item">
-        <a href="/2020/04/27/GoConcurrent8-ThreadBase/" class="archive-title">Go并发编程（八）多线程基础</a>
-        <p class="archive-date">04-27</p>
-      </div>
-    
-      <div class="section-list-item">
-        <a href="/2020/04/24/GoConcurrent7-IPCSocket2/" class="archive-title">Go并发编程（七）IPC之socket举个粟子</a>
-        <p class="archive-date">04-24</p>
-      </div>
-    
-      <div class="section-list-item">
-        <a href="/2020/04/24/GoConcurrent6-IPCSocket1/" class="archive-title">Go并发编程（六）IPC之socket基础</a>
-        <p class="archive-date">04-24</p>
-      </div>
-    
-      <div class="section-list-item">
-        <a href="/2020/04/22/GoConcurrent5-IPCSignal/" class="archive-title">Go并发编程（五）IPC之信号</a>
-        <p class="archive-date">04-22</p>
-      </div>
-    
-      <div class="section-list-item">
-        <a href="/2020/04/19/GoConcurrent4-IPCPipe/" class="archive-title">Go并发编程（四）IPC之管道</a>
-        <p class="archive-date">04-19</p>
-      </div>
-    
-      <div class="section-list-item">
-        <a href="/2020/04/18/GoConcurrent3-SyncFirst/" class="archive-title">Go并发编程（三）并发同步初探</a>
-        <p class="archive-date">04-18</p>
-      </div>
-    
-      <div class="section-list-item">
-        <a href="/2020/04/17/GoConcurrent2-MultiProgress/" class="archive-title">Go并发编程（二）多进程编程</a>
-        <p class="archive-date">04-17</p>
-      </div>
-    
-      <div class="section-list-item">
-        <a href="/2020/04/16/GoConcurrent1-ConcurrentBase/" class="archive-title">Go并发编程（一）并发编程基础</a>
-        <p class="archive-date">04-16</p>
-      </div>
-    
-      <div class="section-list-item">
-        <a href="/2020/04/15/Hexo2-QiniuPic/" class="archive-title">Hexo（二）整合七牛云图床</a>
-        <p class="archive-date">04-15</p>
-      </div>
-    
-      <div class="section-list-item">
-        <a href="/2020/04/13/Hexo1-DeploySelfServer/" class="archive-title">Hexo（一）搭建个人博客</a>
-        <p class="archive-date">04-13</p>
-      </div>
-    
-  </div>
-</section>
   
 </main>
 
-<script>
-  (function () {
-    var url = 'http://zmoyi.com/tags/Hexo/index.html';
-    $('#article-banner').geopattern(url);
-    $('.header').removeClass('fixed-header');
-  })();
-</script>
+
     <div class="scroll-top">
   <span class="arrow-icon"></span>
 </div>
