@@ -94,7 +94,7 @@
       
         <li class="list-item">
           
-            <a href="/archive/" class="item-link">Archives</a>
+            <a href="/archives/" class="item-link">Archives</a>
           
         </li>
       
@@ -133,7 +133,7 @@
         
           <li class="menu-item">
             
-              <a href="/archive/" class="menu-link">Archives</a>
+              <a href="/archives/" class="menu-link">Archives</a>
             
           </li>
         
@@ -155,6 +155,29 @@
 </header>
 
     <main class="app-body">
+  
+    <article class="article-card">
+      <h2 class="article-head">
+        <a href="/2020/05/18/GoConcurrent11-Schedt/">Go并发编程（十一）调度器</a>
+      </h2>
+      <p class="article-date">2020年5月18日</p>
+      
+        
+  <a href="/tags#Go" >
+    <span class="tag-code">Go</span>
+  </a>
+
+      
+      <div class="article-summary">
+        
+          
+上一章讲过，两级线程模型中的一部分调度任务会由操作系统内核之外的程序承担。在Go中，调度器因负责这一部分调度任务。
+
+调度器的主要对象是M、P和G的实例，调度器的辅助设施包括上篇介绍过的各种核心元素的容器。其实，每个M（即每个内核线程）在运行过程中都会按需执行一些调度任务。不过，为了更加容 ...
+        
+      </div>
+      <a class="more" href="/2020/05/18/GoConcurrent11-Schedt/">Read more</a>
+    </article>
   
     <article class="article-card">
       <h2 class="article-head">
@@ -388,33 +411,6 @@ socket的基本特性大多数操作系统都包含了socket接口的实现，�
         
       </div>
       <a class="more" href="/2020/04/17/GoConcurrent2-MultiProgress/">Read more</a>
-    </article>
-  
-    <article class="article-card">
-      <h2 class="article-head">
-        <a href="/2020/04/16/GoConcurrent1-ConcurrentBase/">Go并发编程（一）并发编程基础</a>
-      </h2>
-      <p class="article-date">2020年4月16日</p>
-      
-        
-  <a href="/tags#Go" >
-    <span class="tag-code">Go</span>
-  </a>
-
-  <a href="/tags#并发编程" >
-    <span class="tag-code">并发编程</span>
-  </a>
-
-      
-      <div class="article-summary">
-        
-          
-有过一定开发经验的人都应该知道并发编程。并发编程是一种现代计算机编程技术。它的含义比较宽泛，可以是多线程编程，也可以是多进程编程，还可以是编写分布式程序。Go最明显的优势在于拥有基于多线程的并发编程方式。
-
-并发编程基础并发编程思想来自于多任务操作系统，它允许同时运行多个程序。在早期单用户 ...
-        
-      </div>
-      <a class="more" href="/2020/04/16/GoConcurrent1-ConcurrentBase/">Read more</a>
     </article>
   
 

@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html>
+  <head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0" name="viewport">
+  <meta name="description" content="本博客于 2020 年建站，记录了我在工作过程中学到的技术、运营及产品等知识，并以原创文章的形式分享给大家。未来仍然将坚持不懈的分享技术知识、工作经历等原创内容。 希望看到本博客的前辈多指点扶正、同行们能一起共同学习与进步、正在学习的小伙伴能通过本博客学到对自己有用的知识。">
+  <meta name="keyword" content="ZMOYI, 原创博客, Java, Golang, Linux, 全栈, 后端开发, 前端开发">
+  
+    <link rel="shortcut icon" type="image/ico" href="http://cdn.zmoyi.com/static/images/ico.png"/>
+  
+  <title>
+    
+      Go并发编程（十一）调度器 | Fane&#39;Blog
+    
+  </title>
+  <link href="//cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css" rel="stylesheet">
+  <link href="//cdnjs.cloudflare.com/ajax/libs/nprogress/0.2.0/nprogress.min.css" rel="stylesheet">
+  <link href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/tomorrow.min.css" rel="stylesheet">
+  
+<link rel="stylesheet" href="/css/style.css">
+
+  
+  
+    
+<link rel="stylesheet" href="https://unpkg.com/gitalk/dist/gitalk.css">
+
+  
+  <script src="//cdnjs.cloudflare.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+  <script src="//cdnjs.cloudflare.com/ajax/libs/geopattern/1.2.3/js/geopattern.min.js"></script>
+  <script src="//cdnjs.cloudflare.com/ajax/libs/nprogress/0.2.0/nprogress.min.js"></script>
+  
+    
+<script src="/js/qrious.js"></script>
+
+  
+  
+  
+    
+<script src="https://unpkg.com/gitalk/dist/gitalk.min.js"></script>
+
+  
+  
+  
+    <!-- MathJax support START -->
+    <script type="text/x-mathjax-config">
+      MathJax.Hub.Config({
+        tex2jax: {
+          inlineMath: [ ['$','$'], ["\\(","\\)"]  ],
+          processEscapes: true,
+          skipTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
+        }
+      });
+    </script>
+
+    <script type="text/x-mathjax-config">
+      MathJax.Hub.Queue(function() {
+        var all = MathJax.Hub.getAllJax(), i;
+        for (i=0; i < all.length; i += 1) {
+          all[i].SourceElement().parentNode.className += ' has-jax';
+        }
+      });
+    </script>
+    <script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <!-- MathJax support END -->
+  
+
+
+  
+<meta name="generator" content="Hexo 4.2.0"></head>
+<div class="wechat-share">
+  <img src="http://cdn.zmoyi.com/static/images/logo.png" />
+</div>
+
+  <body>
+    <header class="header fixed-header">
+  <div class="header-container">
+    <a class="home-link" href="/">
+      <div class="logo"></div>
+      <span>Fane'Blog</span>
+    </a>
+    <ul class="right-list">
+      
+        <li class="list-item">
+          
+            <a href="/" class="item-link">Home</a>
+          
+        </li>
+      
+        <li class="list-item">
+          
+            <a href="/tags/" class="item-link">Tags</a>
+          
+        </li>
+      
+        <li class="list-item">
+          
+            <a href="/archives/" class="item-link">Archives</a>
+          
+        </li>
+      
+        <li class="list-item">
+          
+            <a href="/project/" class="item-link">Projects</a>
+          
+        </li>
+      
+        <li class="list-item">
+          
+            <a href="/about/" class="item-link">About</a>
+          
+        </li>
+      
+    </ul>
+    <div class="menu">
+      <span class="icon-bar"></span>
+      <span class="icon-bar"></span>
+      <span class="icon-bar"></span>
+    </div>
+    <div class="menu-mask">
+      <ul class="menu-list">
+        
+          <li class="menu-item">
+            
+              <a href="/" class="menu-link">Home</a>
+            
+          </li>
+        
+          <li class="menu-item">
+            
+              <a href="/tags/" class="menu-link">Tags</a>
+            
+          </li>
+        
+          <li class="menu-item">
+            
+              <a href="/archives/" class="menu-link">Archives</a>
+            
+          </li>
+        
+          <li class="menu-item">
+            
+              <a href="/project/" class="menu-link">Projects</a>
+            
+          </li>
+        
+          <li class="menu-item">
+            
+              <a href="/about/" class="menu-link">About</a>
+            
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+</header>
+
+    <div id="article-banner">
+  <h2>Go并发编程（十一）调度器</h2>
+  <p class="post-date">2020-05-18</p>
+  <div class="arrow-down">
+    <a href="javascript:;"></a>
+  </div>
+</div>
+<main class="app-body flex-box">
+  <!-- Article START -->
+  <article class="post-article">
+    <section class="markdown-content"><blockquote>
+<p>上一章讲过，两级线程模型中的一部分调度任务会由操作系统内核之外的程序承担。在Go中，调度器因负责这一部分调度任务。</p>
+</blockquote>
+<p>调度器的主要对象是M、P和G的实例，调度器的辅助设施包括上篇介绍过的各种核心元素的容器。其实，每个M（即每个内核线程）在运行过程中都会按需执行一些调度任务。不过，为了更加容易理解，我把这些调度任务统称为“调度器的调度行为”。</p>
+<h3 id="基本结构"><a href="#基本结构" class="headerlink" title="基本结构"></a>基本结构</h3><p>调度器有自己的数据结构，其中就有我们已知熟知的空闲M列表、空闲P列表、可运行G队列和自由G列表。下面还有几个重要字段。</p>
+<table>
+<thead>
+<tr>
+<th>字段名称</th>
+<th>数据类型</th>
+<th>用途简述</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>gcwaiting</td>
+<td>uint32</td>
+<td>表示是否需要因一些任务而停止调度</td>
+</tr>
+<tr>
+<td>stopwait</td>
+<td>int32</td>
+<td>表示需要停止但仍未停止的P的数量</td>
+</tr>
+<tr>
+<td>stopnote</td>
+<td>note</td>
+<td>用于实现与stopwait相关的事件通知机制</td>
+</tr>
+<tr>
+<td>sysmonwait</td>
+<td>uint32</td>
+<td>表示在停止调度期间系统监控任务是否在等待</td>
+</tr>
+<tr>
+<td>sysmonnote</td>
+<td>note</td>
+<td>用于实现与sysmonwait相关的事件通知机制</td>
+</tr>
+</tbody></table>
+<p>在这张表中的字段都与需要停止调度的任务有关。在Go运行时系统中，一些任务在执行前是需要暂停调度的，例如垃圾回收任务中的某些子任务，又比如发起运行时恐慌（panic）的任务。我们暂且把这类任务称为<strong>串行运行时任务</strong>。</p>
+<p>字段<code>gcwaiting</code>、<code>stopwait</code>和<code>stopnote</code>都是串行运行时任务执行前后的辅助协调手段。</p>
+<ul>
+<li><p><code>gcwaiting</code>字段的值用于表示是否需要停止调度：在停止调度前，该值会被置为1；在恢复调度前，该值会被置为0。这样做的目的是，一些调度任务在执行时只要发现<code>gcwaiting</code>的值为1，就会把该P的状态置为<code>Pgcstop</code>，然后自减<code>stopwait</code>的值。如果自减后的值为0，就说明所有P的状态都已为<code>Pgcstop</code>。这时就可以利用<code>stopnote</code>字段，唤醒因等待调度停止而暂停的串行运行时任务了。</p>
+</li>
+<li><p><code>sysmonwait</code>和<code>sysmonnote</code>与前面那组用途类似，区别是它们针对的是系统监测任务。<strong>在串行运行时任务执行之前，系统监测任务也需要暂停</strong>。<code>sysmonwait</code>为1时表示已暂停，为0表示未暂停。系统监测任务是持续执行的，它处在无尽的循环之中。在每次迭代之初，系统监测任务都会先检查调度情况。一旦发现调度停止（<code>gcwaiting</code>不为1或所有P都已闲置），就会把<code>sysmonwait</code>置为1，并利用<code>sysmonnote</code>字段暂停自身；另外，在恢复调度之前，调度器若发现<code>sysmonwait</code>值不为0，就会把它置为0，并利用<code>sysmonnote</code>字段恢复系统监测任务的执行。</p>
+</li>
+</ul>
+<p>上述5个调度器字段都是为了串行运行时任务而存在的。并且，运行时系统一定会保证操作它们时的并发安全。</p>
+<h2 id="一轮调度"><a href="#一轮调度" class="headerlink" title="一轮调度"></a>一轮调度</h2><p>上一章我们提到过，引导程序会为Go程序运行建立必要的环境。在引导程序完成一系列初始化工作之后，Go程序的<code>main</code>函数才会真正的执行。</p>
+<p>引导程序会在最后让调度器进行<strong>一轮调度</strong>，这样才能够让封装了<code>main</code>函数的G马上有机会运行。封装<code>main</code>函数的G总是Go运行时系统创建的第一个<strong>用户G</strong>（用于封装用户级别的程序片段，即需并发执行的函数）。相对的，用于封装运行时任务的G称为<strong>运行时G</strong>。</p>
+<p>下面我们深入了解一下调度器在一轮调度中都做了哪些工作。</p>
+<img src="http://cdn.zmoyi.com/static/images/一轮调度.jpg">
+
+<p>一轮调度，由Go标准库代码包<code>runtime</code>中的<code>schedule</code>函数代表。</p>
+<p>在一轮调度开始处，调度器会先判断当前M是否已被锁定。M和G是可以成对的锁定在一起的。锁定M和G的操作可以说是为CGO准备的。</p>
+<blockquote>
+<p>CGO代表了Go中的一种机制，是Go程序和C程序中的一座桥梁，使它们的互相调用成为可能。</p>
+</blockquote>
+<p>接着，再判断当前M是否已与某个G锁定。如果有，就会立即停止调度并停止当前M（或暂时阻塞）。一旦与它锁定的G处于可运行状态，它就会被唤醒并继续运行那个G。</p>
+<p>如果当前M未与任何G锁定。这时，调度器会检查是否有串行运行时任务正在等待执行。这类任务在执行时需要停止调度器。官方称之为“Stop The World”，简称<code>STW</code>。还记得<code>gcwaiting</code>字段么？如果<code>gcwaiting</code>字段值不为0，那一轮调度就会进入另一个分支：停止并阻塞当前M以等待运行时串行任务执行完成。一旦串行任务执行完成，该M就会被唤醒，一轮调度也会再次开始。</p>
+<p>最后，如果调度器在此关于锁定和串行运行时任务的判断都为假，就会开始真正的可运行G之旅。一旦找到一个G，调度器就会在判定该G未与任何M锁定之后，立即让当前M运行它。</p>
+<p>调度器会先从一些比较容易找到可运行G的地方入手，即：全局的（或称调度器的）可运行G队列和本地P的可运行G队列。如果这些地方找不到，调度器会进入强力查找模式，即图中的子流程：<strong>“全力查找可运行的G”</strong>。</p>
+<p>如果经过一番强力查找还是不能找到可运行的G，该子流程就会暂停，直到在可运行的G出现才会继续下去。也就是说，这个全力查找可运行的G的子流程结束，就意味着当前M抢到了一个可运行的G。</p>
+<h3 id="一轮调度在什么情况会被触发？"><a href="#一轮调度在什么情况会被触发？" class="headerlink" title="一轮调度在什么情况会被触发？"></a>一轮调度在什么情况会被触发？</h3><p>一轮调度是Go调度器最核心的流程，在很多情况下都会被触发。例如：</p>
+<ul>
+<li>在用户程序启动时的一系列初始化工作之后，一轮调度流程会首次启动并使封装<code>main</code>函数的那个G被调度运行。</li>
+<li>又例如，某个G运行的阻塞、结束、退出系统调用，以及栈的增长都会使调度器进行一轮调度。</li>
+<li>还有，用户程序对某些标准库函数的调用也会触发一轮调度。比如，对<code>runtime.Gosched</code>函数的调用会使当前G的暂停运行，并让出CPU给其它的G。又比如，调用<code>runtime.Goexit</code>函数会结束当前G的运行，同时也会进行一轮调度。</li>
+</ul>
+<h3 id="全力查找可运行的G"><a href="#全力查找可运行的G" class="headerlink" title="全力查找可运行的G"></a>全力查找可运行的G</h3><p>上面说到，如果调度器没有找到可运行的G，就会进入“全力查找可运行的G”的子流程。概括的讲，这个子流程会多次尝试从各处搜索可运行的G，甚至还会从别的P那时偷取可运行的G。它由<code>runtime.findrunnable</code>函数表示，该函数会返回一个<code>Grunnable</code>状态的G。</p>
+<p>其中的搜索流程大致分为2个阶段和10个步骤，具体如下，这里直接通过源码体现：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br><span class="line">123</span><br><span class="line">124</span><br><span class="line">125</span><br><span class="line">126</span><br><span class="line">127</span><br><span class="line">128</span><br><span class="line">129</span><br><span class="line">130</span><br><span class="line">131</span><br><span class="line">132</span><br><span class="line">133</span><br><span class="line">134</span><br><span class="line">135</span><br><span class="line">136</span><br><span class="line">137</span><br><span class="line">138</span><br><span class="line">139</span><br><span class="line">140</span><br><span class="line">141</span><br><span class="line">142</span><br><span class="line">143</span><br><span class="line">144</span><br><span class="line">145</span><br><span class="line">146</span><br><span class="line">147</span><br><span class="line">148</span><br><span class="line">149</span><br><span class="line">150</span><br><span class="line">151</span><br><span class="line">152</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">findrunnable</span><span class="params">()</span> <span class="params">(gp *g, inheritTime <span class="keyword">bool</span>)</span></span> &#123;</span><br><span class="line">	_g_ := getg()</span><br><span class="line"></span><br><span class="line">	<span class="comment">// 这里的条件和handoffp中的条件必须一致：如果findrunnable将返回G以运行，handoffp必须以M开始。</span></span><br><span class="line"></span><br><span class="line">top:</span><br><span class="line">	_p_ := _g_.m.p.ptr()</span><br><span class="line">	<span class="keyword">if</span> sched.gcwaiting != <span class="number">0</span> &#123;</span><br><span class="line">		gcstopm()</span><br><span class="line">		<span class="keyword">goto</span> top</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">if</span> _p_.runSafePointFn != <span class="number">0</span> &#123;</span><br><span class="line">		runSafePointFn()</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	now, pollUntil, _ := checkTimers(_p_, <span class="number">0</span>)</span><br><span class="line">	<span class="comment">// 1、获取执行终结器的G</span></span><br><span class="line">	<span class="keyword">if</span> fingwait &amp;&amp; fingwake &#123;</span><br><span class="line">		<span class="keyword">if</span> gp := wakefing(); gp != <span class="literal">nil</span> &#123;</span><br><span class="line">			ready(gp, <span class="number">0</span>, <span class="literal">true</span>)</span><br><span class="line">		&#125;</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">if</span> *cgo_yield != <span class="literal">nil</span> &#123;</span><br><span class="line">		asmcgocall(*cgo_yield, <span class="literal">nil</span>)</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	<span class="comment">// 2、从本地P的可运行G队列中获取G</span></span><br><span class="line">	<span class="keyword">if</span> gp, inheritTime := runqget(_p_); gp != <span class="literal">nil</span> &#123;</span><br><span class="line">		<span class="keyword">return</span> gp, inheritTime</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	<span class="comment">// 3、从调度器的可运行G队列中获取G</span></span><br><span class="line">	<span class="keyword">if</span> sched.runqsize != <span class="number">0</span> &#123;</span><br><span class="line">		lock(&amp;sched.lock)</span><br><span class="line">		gp := globrunqget(_p_, <span class="number">0</span>)</span><br><span class="line">		unlock(&amp;sched.lock)</span><br><span class="line">		<span class="keyword">if</span> gp != <span class="literal">nil</span> &#123;</span><br><span class="line">			<span class="keyword">return</span> gp, <span class="literal">false</span></span><br><span class="line">		&#125;</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	<span class="comment">// 4、从网络io轮询器（或称netpoller）处获取G</span></span><br><span class="line">	<span class="keyword">if</span> netpollinited() &amp;&amp; atomic.Load(&amp;netpollWaiters) &gt; <span class="number">0</span> &amp;&amp; atomic.Load64(&amp;sched.lastpoll) != <span class="number">0</span> &#123;</span><br><span class="line">		<span class="keyword">if</span> list := netpoll(<span class="number">0</span>); !list.empty() &#123; <span class="comment">// non-blocking</span></span><br><span class="line">			gp := list.pop()</span><br><span class="line">			injectglist(&amp;list)</span><br><span class="line">			casgstatus(gp, _Gwaiting, _Grunnable)</span><br><span class="line">			<span class="keyword">if</span> trace.enabled &#123;</span><br><span class="line">				traceGoUnpark(gp, <span class="number">0</span>)</span><br><span class="line">			&#125;</span><br><span class="line">			<span class="keyword">return</span> gp, <span class="literal">false</span></span><br><span class="line">		&#125;</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	<span class="comment">// 5、从其它P的可运行G队列获取G</span></span><br><span class="line">	procs := <span class="keyword">uint32</span>(gomaxprocs)</span><br><span class="line">	ranTimer := <span class="literal">false</span></span><br><span class="line">	<span class="keyword">if</span> !_g_.m.spinning &amp;&amp; <span class="number">2</span>*atomic.Load(&amp;sched.nmspinning) &gt;= procs-atomic.Load(&amp;sched.npidle) &#123;</span><br><span class="line">		<span class="keyword">goto</span> stop</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">if</span> !_g_.m.spinning &#123;</span><br><span class="line">		_g_.m.spinning = <span class="literal">true</span></span><br><span class="line">		atomic.Xadd(&amp;sched.nmspinning, <span class="number">1</span>)</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">for</span> i := <span class="number">0</span>; i &lt; <span class="number">4</span>; i++ &#123;</span><br><span class="line">		<span class="comment">// ......</span></span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">if</span> ranTimer &#123;</span><br><span class="line">		<span class="comment">// Running a timer may have made some goroutine ready.</span></span><br><span class="line">		<span class="keyword">goto</span> top</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">stop:</span><br><span class="line"></span><br><span class="line">	<span class="comment">// 6、获取执行GC标记任务的G</span></span><br><span class="line">	<span class="keyword">if</span> gcBlackenEnabled != <span class="number">0</span> &amp;&amp; _p_.gcBgMarkWorker != <span class="number">0</span> &amp;&amp; gcMarkWorkAvailable(_p_) &#123;</span><br><span class="line">		_p_.gcMarkWorkerMode = gcMarkWorkerIdleMode</span><br><span class="line">		gp := _p_.gcBgMarkWorker.ptr()</span><br><span class="line">		casgstatus(gp, _Gwaiting, _Grunnable)</span><br><span class="line">		<span class="keyword">if</span> trace.enabled &#123;</span><br><span class="line">			traceGoUnpark(gp, <span class="number">0</span>)</span><br><span class="line">		&#125;</span><br><span class="line">		<span class="keyword">return</span> gp, <span class="literal">false</span></span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	<span class="comment">// ......</span></span><br><span class="line">    </span><br><span class="line">	<span class="comment">// 7、从调度器的可运行G队列中获取G</span></span><br><span class="line">	<span class="keyword">if</span> sched.runqsize != <span class="number">0</span> &#123;</span><br><span class="line">		gp := globrunqget(_p_, <span class="number">0</span>)</span><br><span class="line">		unlock(&amp;sched.lock)</span><br><span class="line">		<span class="keyword">return</span> gp, <span class="literal">false</span></span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">if</span> releasep() != _p_ &#123;</span><br><span class="line">		throw(<span class="string">"findrunnable: wrong p"</span>)</span><br><span class="line">	&#125;</span><br><span class="line">	pidleput(_p_)</span><br><span class="line">	unlock(&amp;sched.lock)</span><br><span class="line"></span><br><span class="line">	wasSpinning := _g_.m.spinning</span><br><span class="line">	<span class="keyword">if</span> _g_.m.spinning &#123;</span><br><span class="line">		_g_.m.spinning = <span class="literal">false</span></span><br><span class="line">		<span class="keyword">if</span> <span class="keyword">int32</span>(atomic.Xadd(&amp;sched.nmspinning, <span class="number">-1</span>)) &lt; <span class="number">0</span> &#123;</span><br><span class="line">			throw(<span class="string">"findrunnable: negative nmspinning"</span>)</span><br><span class="line">		&#125;</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	<span class="comment">// 8、从全局P列表中的每个P的可运行G队列获取G</span></span><br><span class="line">	<span class="keyword">for</span> _, _p_ := <span class="keyword">range</span> allpSnapshot &#123;</span><br><span class="line">		<span class="keyword">if</span> !runqempty(_p_) &#123;</span><br><span class="line">			lock(&amp;sched.lock)</span><br><span class="line">			_p_ = pidleget()</span><br><span class="line">			unlock(&amp;sched.lock)</span><br><span class="line">			<span class="keyword">if</span> _p_ != <span class="literal">nil</span> &#123;</span><br><span class="line">				acquirep(_p_)</span><br><span class="line">				<span class="keyword">if</span> wasSpinning &#123;</span><br><span class="line">					_g_.m.spinning = <span class="literal">true</span></span><br><span class="line">					atomic.Xadd(&amp;sched.nmspinning, <span class="number">1</span>)</span><br><span class="line">				&#125;</span><br><span class="line">				<span class="keyword">goto</span> top</span><br><span class="line">			&#125;</span><br><span class="line">			<span class="keyword">break</span></span><br><span class="line">		&#125;</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	<span class="comment">// 9、获取执行GC标记任务的G</span></span><br><span class="line">	<span class="keyword">if</span> gcBlackenEnabled != <span class="number">0</span> &amp;&amp; gcMarkWorkAvailable(<span class="literal">nil</span>) &#123;</span><br><span class="line">		lock(&amp;sched.lock)</span><br><span class="line">		_p_ = pidleget()</span><br><span class="line">		<span class="keyword">if</span> _p_ != <span class="literal">nil</span> &amp;&amp; _p_.gcBgMarkWorker == <span class="number">0</span> &#123;</span><br><span class="line">			pidleput(_p_)</span><br><span class="line">			_p_ = <span class="literal">nil</span></span><br><span class="line">		&#125;</span><br><span class="line">		unlock(&amp;sched.lock)</span><br><span class="line">		<span class="keyword">if</span> _p_ != <span class="literal">nil</span> &#123;</span><br><span class="line">			acquirep(_p_)</span><br><span class="line">			<span class="keyword">if</span> wasSpinning &#123;</span><br><span class="line">				_g_.m.spinning = <span class="literal">true</span></span><br><span class="line">				atomic.Xadd(&amp;sched.nmspinning, <span class="number">1</span>)</span><br><span class="line">			&#125;</span><br><span class="line">			<span class="comment">// Go back to idle GC check.</span></span><br><span class="line">			<span class="keyword">goto</span> stop</span><br><span class="line">		&#125;</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	<span class="comment">// 10、从网络io轮询器（或称netpoller）处获取G</span></span><br><span class="line">	<span class="keyword">if</span> netpollinited() &amp;&amp; (atomic.Load(&amp;netpollWaiters) &gt; <span class="number">0</span> || pollUntil != <span class="number">0</span>) &amp;&amp; atomic.Xchg64(&amp;sched.lastpoll, <span class="number">0</span>) != <span class="number">0</span> &#123;</span><br><span class="line">		<span class="comment">// ......</span></span><br><span class="line">	&#125;</span><br><span class="line">	stopm()</span><br><span class="line">	<span class="keyword">goto</span> top</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>如果经过上面这10个步骤依然没有找到可运行的G，调度器就会停止当前的M。在之后的某个时刻，该M被唤醒后，它会重新进入“全力查找可运行的G”的子流程。</p>
+<p>对这个子流程还有几个细节说明一下：</p>
+<ul>
+<li>网络I/O（即<code>netpoller</code>）是Go为了在操作系统提供的异步I/O基础组件之上，实现自己的阻塞式I/O而编写的一个子程序。</li>
+<li>在第5步，调度器从其它P的可运行队列获取G是有条件的。<ul>
+<li>1、除了本地P还有非空闲的P，如果都是空闲的P，就没必要再去它们那查找可运行的G了。</li>
+<li>2、当前M正处于自旋状态，或者处于自旋状态的M数量小于非空闲P的数量的1/2。这主要是为了控制自旋M的数量，过多的自旋M会消耗太多CPU资源。没有必要让更多的M去查找可运行的G。</li>
+</ul>
+</li>
+</ul>
+<p>说到<strong>自旋状态</strong>，它实际是标识了M的一种工作状态。M处于自旋状态，意味着它还没找到G来运行，无论是由于找到了可运行的G，还是由于因始终未找到可运行的G而需要停止M，当前M都会退出自旋状态。</p>
+<p>一般情况下，运行时系统中至少会有一个自旋状态的M，调度器会尽量保证有一个自旋M的存在。除非发现没有自旋的M，调度器是不会新启用或恢复一个M去运行新的G。一旦需要新启用或恢复一个M，它最初总是会处于自旋状态。</p>
+<h2 id="启用或停止M"><a href="#启用或停止M" class="headerlink" title="启用或停止M"></a>启用或停止M</h2><p>上面多次提到，调度器有时会停止当前M。在Go标准库代码包<code>runtime</code>中，有下面这样几个函数负责M的启用或停止。</p>
+<ul>
+<li><strong>stopm()</strong>。停止当前M的运行，直到因有新的G变得可运行而被唤醒。</li>
+<li><strong>gcstopm()。</strong>为串行运行时任务的执行让路，停止当前M的执行。串行运行时任务执行完毕后会被唤醒。</li>
+<li><strong>stoplockedm()</strong>。停止已与某个G锁定的当前M的执行，直到因这个G变得可运行而被唤醒。</li>
+<li><strong>startlockedm(gp *g)</strong>。唤醒与gp锁定的那个M，并让该M去执行gp。</li>
+<li><strong>startm(<em>_</em>p<em>_</em> *p, spinning bool)</strong>。唤醒或创建一个M去关联<em>_</em>p<em>_</em>并开始执行。</li>
+</ul>
+<p>下图是Go调度器对这些函数的使用，</p>
+<img src="http://cdn.zmoyi.com/static/images/启用和停止M.jpg">
+
+<p>1、调度器在调度流程的时候，会先检查当前M是否与某个G锁定。如果锁定，调度器就会调用<code>stoplockedm</code>函数停止当前M。<code>stoplockedm</code>函数会先解除当前M与本地P之间的关联，并通过调用一个叫<code>handoffp</code>的函数把这个P转手给其它M，在这个转手的过程中会间接调用<code>startm</code>函数。一旦这个P被转手，<code>stoplockedm</code>就会停止当前M的执行，并等待唤醒。</p>
+<p>2、如果调度程序为当前M找到了一个可运行的G，却发现该G已与某个M锁定了，那么就会调用<code>startlockedm</code>函数并把这个G作为参数传入。<code>startlockedm</code>函数会通过<code>gp</code>的<code>lockedm</code>字段找到与之前锁定的那个M（以下简称“已锁M”），并把当前M的本地P转手给它。这里的转手P的过程要比过程1中简单的多，<code>startlockedm</code>函数会先解除当前M与本地P的关联，然后把这个P赋给已锁M的<code>nextp</code>字段（即预联它们）。</p>
+<p>3、<code>startlockedm</code>函数会的执行会使其参数gp绑定的那个M（已锁M）被唤醒。通过<code>gp</code>的<code>lockedm</code>字段可以找到已锁M。一旦已锁M被唤醒，就会与和它预联的P产生正式关联，并去执行与之相关的G。</p>
+<p>4、<code>startlockedm</code>函数在最后会调用<code>stopm</code>函数。<code>stopm</code>函数会先把当前M放入调度器的空闲M列表，然后停止当前M。这里被停止的M，可能会在之后因有P需要转手，或有G需要执行而被唤醒。</p>
+<p>纵观上述流程，我们可以看到因M和G的锁定而执行的分支流程。<strong>这里涉及两个M，一个是因等待执行与之锁定的G而停止的M，一个是获取到一个已锁定的G却不能执行的M</strong>。</p>
+<p>从另一个角度看，一旦M要停止就会把它的本地的P转手给别的M。一旦M被唤醒，就会先找到一个P与之关联，即找到它的新的本地P。并且，这个P一定是在该M被唤醒之前由别的M预联给它的。因此P问题会被高效利用。如果<code>handoffp</code>函数无法把作为其参数的P转给一个M，那么就会把这个P放入调度器的空闲P列表。</p>
+<p>5、调度器在执行调度流程的时候，也会检查是否有串行运行时任务正在等待执行。如果有，调度器<code>gcstopm</code>函数停止当前M。<code>gcstopm</code>函数会先通过当前M的<code>spinning</code>字段检查它的自旋状态，如果状态为<code>true</code>，就把<code>false</code>赋给它，然后把调度器中用于自旋M数量的<code>nmspinning</code>字段减1。如此一来就完全重置了当前M的自旋状态标识，一个将要停止的M理应脱离自旋状态。在这之后，<code>gcstop</code>函数会释放本地P，并将其状态置为<code>Pgcstop</code>。然后再去自减并检查调度器的<code>stopwait</code>字段，并在发现<code>stopwait</code>字段的值为0时，通过调度器的<code>stopnote</code>字段唤醒等待执行的串行运行时任务。</p>
+<p>6、<code>gcstopm</code>函数会在最后调用<code>stopm</code>函数。同样的，当前M会被放入调度器的空闲M列表并停止。只要串行运行时任务准备执行，“Stop the world”就会开始，所有在调度过程中的M就都会执行步骤5和6。其中的步骤5更是决定了串行运行时任务是否能够被尽早地执行。</p>
+<p>7、调度总有不成功的时候。经过完整的一轮调度之后，仍找不到一个可运行的G给当前M执行，那么调度程序就会通过调用<code>stopm</code>函数停止当前M。换句话说，这时已经没有多余的工作可以做了，为了节省资源就要停掉一些M。</p>
+<p>8、所有经由调用<code>stopm</code>函数停止的M，都可以通过调用<code>startm</code>函数唤醒，与步骤7对应，一个M被唤醒的原因总是有新的工作要做。比如，有了新的自由的P，或者有了新的可运行的G。</p>
+<p>有时候，传入<code>startm</code>函数的参数<em>_</em>p<em>_</em>为<code>nil</code>，这就说明在唤醒一个M的同时，需要从调度器的空闲P列表获取一个P作为M运行G的上下文环境。如果这个列表也为空，这里<code>startm</code>会直接返回。</p>
+<p>一旦有了一个新的P，<code>startm</code>函数就会再次从调度器的空闲M列表获取一个M；如果该列表已空就创建一个新的M。无论如何，<code>startm</code>函数都会把拿到的P和这个M预联，然后让该M做好执行准备。</p>
+<p>在高并发的Go程序中，启停M的流程在调度器中经常被执行到。因为并发量越大，调度器对M、P和G的调度就越频繁。各个G总是通过这样或那样的途径用到系统调用，也经常会使用到Go本身的各种组件（如channel、Timer等）。这些都直接或间接的涉及M的启停。理解此流程能够更好的帮助我们了解Go调度器的运行机制。</p>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>本篇文章，我们主要学习了Go中最核心的内容之一——调度器的调度原理。在程序启动的时候，引导程序会为Go程序的运行建立必要的环境，并在最后进行调度器的一轮调度。除此之外，我们还讲述了一轮调度的基本流程和触发场景。在最后还学习M的启停流程以加深对一轮调度的理解。下面是一轮调度的源码：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br><span class="line">123</span><br><span class="line">124</span><br><span class="line">125</span><br><span class="line">126</span><br><span class="line">127</span><br><span class="line">128</span><br><span class="line">129</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 一轮调度</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">schedule</span><span class="params">()</span></span> &#123;</span><br><span class="line">	_g_ := getg()</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 判断当前M是否被锁定</span></span><br><span class="line">	<span class="keyword">if</span> _g_.m.locks != <span class="number">0</span> &#123;</span><br><span class="line">		throw(<span class="string">"schedule: holding locks"</span>)</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 判断当前M是否与某个G锁定。</span></span><br><span class="line">	<span class="keyword">if</span> _g_.m.lockedg != <span class="number">0</span> &#123;</span><br><span class="line">        <span class="comment">// 如果锁定，就会立即停止当前M（或者说暂时阻塞）。</span></span><br><span class="line">        <span class="comment">// stoplockedm函数会先解除当前M与本地P的关联，并通过一个叫handoffp的函数把这个P转手给其它M。</span></span><br><span class="line">        <span class="comment">// 一旦这个P被转手，stoplockedm函数就会停止当前M的运行，并等待唤醒。</span></span><br><span class="line">		stoplockedm()</span><br><span class="line">		execute(_g_.m.lockedg.ptr(), <span class="literal">false</span>) <span class="comment">// Never returns.</span></span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	<span class="comment">// We should not schedule away from a g that is executing a cgo call,</span></span><br><span class="line">	<span class="comment">// since the cgo call is using the m's g0 stack.</span></span><br><span class="line">	<span class="keyword">if</span> _g_.m.incgo &#123;</span><br><span class="line">		throw(<span class="string">"schedule: in cgo"</span>)</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">top:</span><br><span class="line">	pp := _g_.m.p.ptr()</span><br><span class="line">	pp.preempt = <span class="literal">false</span></span><br><span class="line"></span><br><span class="line">    <span class="comment">// 检查是否有串行运行时任务正在等待执行。</span></span><br><span class="line">	<span class="keyword">if</span> sched.gcwaiting != <span class="number">0</span> &#123;</span><br><span class="line">        <span class="comment">// 停止并阻塞当前M以等待运行时串行任务执行完成。</span></span><br><span class="line">        <span class="comment">// 一旦串行任务执行完成，该M就会被唤醒，一轮调度也会再次开始。</span></span><br><span class="line">		gcstopm()</span><br><span class="line">		<span class="keyword">goto</span> top</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">if</span> pp.runSafePointFn != <span class="number">0</span> &#123;</span><br><span class="line">		runSafePointFn()</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	<span class="comment">// Sanity check: if we are spinning, the run queue should be empty.</span></span><br><span class="line">	<span class="comment">// Check this before calling checkTimers, as that might call</span></span><br><span class="line">	<span class="comment">// goready to put a ready goroutine on the local run queue.</span></span><br><span class="line">	<span class="keyword">if</span> _g_.m.spinning &amp;&amp; (pp.runnext != <span class="number">0</span> || pp.runqhead != pp.runqtail) &#123;</span><br><span class="line">		throw(<span class="string">"schedule: spinning with local work"</span>)</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	checkTimers(pp, <span class="number">0</span>)</span><br><span class="line"></span><br><span class="line">	<span class="keyword">var</span> gp *g</span><br><span class="line">	<span class="keyword">var</span> inheritTime <span class="keyword">bool</span></span><br><span class="line"></span><br><span class="line">    tryWakeP := <span class="literal">false</span></span><br><span class="line">    <span class="comment">// 试图获取执行踪迹读取任务的G</span></span><br><span class="line">	<span class="keyword">if</span> trace.enabled || trace.shutdown &#123;</span><br><span class="line">		gp = traceReader()</span><br><span class="line">		<span class="keyword">if</span> gp != <span class="literal">nil</span> &#123;</span><br><span class="line">			casgstatus(gp, _Gwaiting, _Grunnable)</span><br><span class="line">			traceGoUnpark(gp, <span class="number">0</span>)</span><br><span class="line">			tryWakeP = <span class="literal">true</span></span><br><span class="line">		&#125;</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">if</span> gp == <span class="literal">nil</span> &amp;&amp; gcBlackenEnabled != <span class="number">0</span> &#123;</span><br><span class="line">        <span class="comment">// 试图获取执行GC标记任务的G</span></span><br><span class="line">		gp = gcController.findRunnableGCWorker(_g_.m.p.ptr())</span><br><span class="line">		tryWakeP = tryWakeP || gp != <span class="literal">nil</span></span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">if</span> gp == <span class="literal">nil</span> &#123;</span><br><span class="line">		<span class="keyword">if</span> _g_.m.p.ptr().schedtick%<span class="number">61</span> == <span class="number">0</span> &amp;&amp; sched.runqsize &gt; <span class="number">0</span> &#123;</span><br><span class="line">            lock(&amp;sched.lock)</span><br><span class="line">            <span class="comment">// 在特定条件下从全局可运行G队列获取G</span></span><br><span class="line">			gp = globrunqget(_g_.m.p.ptr(), <span class="number">1</span>)</span><br><span class="line">			unlock(&amp;sched.lock)</span><br><span class="line">		&#125;</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">if</span> gp == <span class="literal">nil</span> &#123;</span><br><span class="line">        <span class="comment">// 从本地P的可运行队列获取G</span></span><br><span class="line">		gp, inheritTime = runqget(_g_.m.p.ptr())</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">if</span> gp == <span class="literal">nil</span> &#123;</span><br><span class="line">        <span class="comment">// 进入强力查找模式，全力查找可运行的G。</span></span><br><span class="line">		gp, inheritTime = findrunnable() <span class="comment">// blocks until work is available</span></span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	<span class="comment">// This thread is going to run a goroutine and is not spinning anymore,</span></span><br><span class="line">	<span class="comment">// so if it was marked as spinning we need to reset it now and potentially</span></span><br><span class="line">	<span class="comment">// start a new spinning M.</span></span><br><span class="line">	<span class="keyword">if</span> _g_.m.spinning &#123;</span><br><span class="line">		resetspinning()</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	<span class="keyword">if</span> sched.disable.user &amp;&amp; !schedEnabled(gp) &#123;</span><br><span class="line">		<span class="comment">// Scheduling of this goroutine is disabled. Put it on</span></span><br><span class="line">		<span class="comment">// the list of pending runnable goroutines for when we</span></span><br><span class="line">		<span class="comment">// re-enable user scheduling and look again.</span></span><br><span class="line">		lock(&amp;sched.lock)</span><br><span class="line">		<span class="keyword">if</span> schedEnabled(gp) &#123;</span><br><span class="line">			<span class="comment">// Something re-enabled scheduling while we</span></span><br><span class="line">			<span class="comment">// were acquiring the lock.</span></span><br><span class="line">			unlock(&amp;sched.lock)</span><br><span class="line">		&#125; <span class="keyword">else</span> &#123;</span><br><span class="line">			sched.disable.runnable.pushBack(gp)</span><br><span class="line">			sched.disable.n++</span><br><span class="line">			unlock(&amp;sched.lock)</span><br><span class="line">			<span class="keyword">goto</span> top</span><br><span class="line">		&#125;</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	<span class="comment">// If about to schedule a not-normal goroutine (a GCworker or tracereader),</span></span><br><span class="line">	<span class="comment">// wake a P if there is one.</span></span><br><span class="line">	<span class="keyword">if</span> tryWakeP &#123;</span><br><span class="line">		<span class="keyword">if</span> atomic.Load(&amp;sched.npidle) != <span class="number">0</span> &amp;&amp; atomic.Load(&amp;sched.nmspinning) == <span class="number">0</span> &#123;</span><br><span class="line">			wakep()</span><br><span class="line">		&#125;</span><br><span class="line">    &#125;</span><br><span class="line">    </span><br><span class="line">    <span class="comment">// 当调度器为当前M找到一个可运行的G，但却发现该G己与某个M锁定。</span></span><br><span class="line">	<span class="keyword">if</span> gp.lockedm != <span class="number">0</span> &#123;</span><br><span class="line">        <span class="comment">// 就唤醒那个与之锁定的M以运行该G，并重新为当前M寻找一个可运行的G。</span></span><br><span class="line">        <span class="comment">// startlockedm函数会通过gp的lockedm字段找到与之锁定的那个M（已锁M），然后解除当前M和本地P之间的关联，</span></span><br><span class="line">        <span class="comment">// 然后把这个P赋给已锁M的nextp字段（预联它们），完成本地P的转手。一旦已锁M被唤醒，就会与和它预联的P产生关联，并去执行与之关联的G。</span></span><br><span class="line">        <span class="comment">// startlockedm最后还会去调用stopm函数。stopm函数会选择当前M放入调度器的空闲M列表，然后停止当前M。</span></span><br><span class="line">        <span class="comment">// 这里被停止的M，可能会在之后有因有P需要转手，或有G需要执行而被唤醒</span></span><br><span class="line">		startlockedm(gp)</span><br><span class="line">		<span class="keyword">goto</span> top</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 让当前M运行G</span></span><br><span class="line">	execute(gp, inheritTime)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+</section>
+    <!-- Tags START -->
+    
+      <div class="tags">
+        <span>Tags:</span>
+        
+  <a href="/tags#Go" >
+    <span class="tag-code">Go</span>
+  </a>
+
+      </div>
+    
+    <!-- Tags END -->
+    <!-- NAV START -->
+    
+  <div class="nav-container">
+    <!-- reverse left and right to put prev and next in a more logic postition -->
+    
+      <a class="nav-left" href="/2020/05/09/GoConcurrent10-GoThreadModel/">
+        <span class="nav-arrow">← </span>
+        
+          Go并发编程（十）Go并发编程模型
+        
+      </a>
+    
+    
+  </div>
+
+    <!-- NAV END -->
+    <!-- 打赏 START -->
+    
+      <div class="money-like">
+        <div class="reward-btn">
+          赏
+          <span class="money-code">
+            <span class="alipay-code">
+              <div class="code-image"></div>
+              <b>使用支付宝打赏</b>
+            </span>
+            <span class="wechat-code">
+              <div class="code-image"></div>
+              <b>使用微信打赏</b>
+            </span>
+          </span>
+        </div>
+        <p class="notice">若你觉得我的文章对你有帮助，欢迎点击上方按钮对我打赏</p>
+      </div>
+    
+    <!-- 打赏 END -->
+    <!-- 二维码 START -->
+    
+      <div class="qrcode">
+        <canvas id="share-qrcode"></canvas>
+        <p class="notice">扫描二维码，分享此文章</p>
+      </div>
+    
+    <!-- 二维码 END -->
+    
+      <!-- Gitalk START -->
+      <div id="gitalk-container"></div>
+      <!-- Gitalk END -->
+    
+  </article>
+  <!-- Article END -->
+  <!-- Catalog START -->
+  
+    <aside class="catalog-container">
+  <div class="toc-main">
+    <strong class="toc-title">目录</strong>
+    
+      <ol class="toc-nav"><li class="toc-nav-item toc-nav-level-3"><a class="toc-nav-link" href="#基本结构"><span class="toc-nav-text">基本结构</span></a></li></ol></li><li class="toc-nav-item toc-nav-level-2"><a class="toc-nav-link" href="#一轮调度"><span class="toc-nav-text">一轮调度</span></a><ol class="toc-nav-child"><li class="toc-nav-item toc-nav-level-3"><a class="toc-nav-link" href="#一轮调度在什么情况会被触发？"><span class="toc-nav-text">一轮调度在什么情况会被触发？</span></a></li><li class="toc-nav-item toc-nav-level-3"><a class="toc-nav-link" href="#全力查找可运行的G"><span class="toc-nav-text">全力查找可运行的G</span></a></li></ol></li><li class="toc-nav-item toc-nav-level-2"><a class="toc-nav-link" href="#启用或停止M"><span class="toc-nav-text">启用或停止M</span></a></li><li class="toc-nav-item toc-nav-level-2"><a class="toc-nav-link" href="#总结"><span class="toc-nav-text">总结</span></a>
+    
+  </div>
+</aside>
+  
+  <!-- Catalog END -->
+</main>
+
+<script>
+  (function () {
+    var url = 'http://zmoyi.com/2020/05/18/GoConcurrent11-Schedt/';
+    var banner = ''
+    if (banner !== '' && banner !== 'undefined' && banner !== 'null') {
+      $('#article-banner').css({
+        'background-image': 'url(' + banner + ')'
+      })
+    } else {
+      $('#article-banner').geopattern(url)
+    }
+    $('.header').removeClass('fixed-header')
+
+    // error image
+    $(".markdown-content img").on('error', function() {
+      $(this).attr('src', 'http://file.muyutech.com/error-img.png')
+      $(this).css({
+        'cursor': 'default'
+      })
+    })
+
+    // zoom image
+    $(".markdown-content img").on('click', function() {
+      var src = $(this).attr('src')
+      if (src !== 'http://file.muyutech.com/error-img.png') {
+        var imageW = $(this).width()
+        var imageH = $(this).height()
+
+        var zoom = ($(window).width() * 0.95 / imageW).toFixed(2)
+        zoom = zoom < 1 ? 1 : zoom
+        zoom = zoom > 2 ? 2 : zoom
+        var transY = (($(window).height() - imageH) / 2).toFixed(2)
+
+        $('body').append('<div class="image-view-wrap"><div class="image-view-inner"><img src="'+ src +'" /></div></div>')
+        $('.image-view-wrap').addClass('wrap-active')
+        $('.image-view-wrap img').css({
+          'width': `${imageW}`,
+          'transform': `translate3d(0, ${transY}px, 0) scale3d(${zoom}, ${zoom}, 1)`
+        })
+        $('html').css('overflow', 'hidden')
+
+        $('.image-view-wrap').on('click', function() {
+          $(this).remove()
+          $('html').attr('style', '')
+        })
+      }
+    })
+  })();
+</script>
+
+
+  <script>
+    var qr = new QRious({
+      element: document.getElementById('share-qrcode'),
+      value: document.location.href
+    });
+  </script>
+
+
+
+
+
+  <script type="text/javascript">
+    var gitalk = new Gitalk({
+      clientID: '595f268d984e0123456f',
+      clientSecret: 'e4c1799bc7a82448653f758927992c6217beb7cb',
+      id: window.location.pathname,
+      repo: 'fanezhao.github.io',
+      owner: 'fanezhao',
+      admin: 'fanezhao'
+    })
+    gitalk.render('gitalk-container')
+  </script>
+
+
+
+
+    <div class="scroll-top">
+  <span class="arrow-icon"></span>
+</div>
+    <footer class="app-footer">
+  <p class="copyright">
+    &copy;2020 <a href="https://github.com/fanezhao" target="_blank" rel="noopener">Fane</a>
+    | PV: <span id="busuanzi_value_site_pv"></span>
+    | UV: <span id="busuanzi_value_site_uv"></span>
+    | PPV: <span id="busuanzi_value_page_pv"></span>
+    <br>
+  </p>
+  <div style="width:350px;margin:0 auto; padding:0px 0; overflow: hidden;">
+    <a href="http://www.beian.miit.gov.cn/" target="_blank" rel="noopener" style="display:inline-block;text-decoration: none; height:20px;line-height:20px;float: left;">
+        <p style="float:left;height:20px;line-height:20px;margin: 0px 0px 0px 5px; color:#939393;">浙ICP备20012854号</p >
+    </a >
+    <a href="http://www.beian.gov.cn/portal/registerSystemInfo?recordcode=33011002014629" target="_blank" rel="noopener" style="display:inline-block; text-decoration: none; height:20px; line-height:20px; float:right;">
+        <img src="http://cdn.zmoyi.com/static/images/%E5%A4%87%E6%A1%88%E5%9B%BE%E6%A0%87.png" style="float:left;" alt="">
+        <p style="float:left;height:20px;line-height:20px;margin: 0px 0px 0px 5px; color:#939393;">浙公网安备 33011002014629号</p >
+    </a >
+  </div>
+</footer>
+
+<script>
+  function async(u, c) {
+    var d = document, t = 'script',
+      o = d.createElement(t),
+      s = d.getElementsByTagName(t)[0];
+    o.src = u;
+    if (c) { o.addEventListener('load', function (e) { c(null, e); }, false); }
+    s.parentNode.insertBefore(o, s);
+  }
+</script>
+<script>
+  async("//cdnjs.cloudflare.com/ajax/libs/fastclick/1.0.6/fastclick.min.js", function(){
+    FastClick.attach(document.body);
+  })
+</script>
+
+<script>
+  var hasLine = 'true';
+  async("//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/highlight.min.js", function(){
+    $('figure pre').each(function(i, block) {
+      var figure = $(this).parents('figure');
+      if (hasLine === 'false') {
+        figure.find('.gutter').hide();
+      }
+      var lang = figure.attr('class').split(' ')[1] || 'code';
+      var codeHtml = $(this).html();
+      var codeTag = document.createElement('code');
+      codeTag.className = lang;
+      codeTag.innerHTML = codeHtml;
+      $(this).attr('class', '').empty().html(codeTag);
+      figure.attr('data-lang', lang.toUpperCase());
+      hljs.highlightBlock(block);
+    });
+  })
+</script>
+<!-- Baidu Tongji -->
+
+<script>
+    var _baId = '1da5032819b12da8d4c1fb82c6f21ffa';
+    // Originial
+    var _hmt = _hmt || [];
+    (function() {
+      var hm = document.createElement("script");
+      hm.src = "//hm.baidu.com/hm.js?" + _baId;
+      var s = document.getElementsByTagName("script")[0];
+      s.parentNode.insertBefore(hm, s);
+    })();
+</script>
+
+<!-- busuanzi -->
+<script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+
+<script src="/js/script.js"></script>
+
+  </body>
+</html>
