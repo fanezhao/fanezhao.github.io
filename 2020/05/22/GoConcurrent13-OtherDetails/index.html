@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html>
+  <head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0" name="viewport">
+  <meta name="description" content="本博客于 2020 年建站，记录了我在工作过程中学到的技术、运营及产品等知识，并以原创文章的形式分享给大家。未来仍然将坚持不懈的分享技术知识、工作经历等原创内容。 希望看到本博客的前辈多指点扶正、同行们能一起共同学习与进步、正在学习的小伙伴能通过本博客学到对自己有用的知识。">
+  <meta name="keyword" content="ZMOYI, 原创博客, Java, Golang, Linux, 全栈, 后端开发, 前端开发">
+  
+    <link rel="shortcut icon" type="image/ico" href="http://cdn.zmoyi.com/static/images/ico.png"/>
+  
+  <title>
+    
+      Go并发编程（十三）调度器的其他细节 | Fane&#39;Blog
+    
+  </title>
+  <link href="//cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css" rel="stylesheet">
+  <link href="//cdnjs.cloudflare.com/ajax/libs/nprogress/0.2.0/nprogress.min.css" rel="stylesheet">
+  <link href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/tomorrow.min.css" rel="stylesheet">
+  
+<link rel="stylesheet" href="/css/style.css">
+
+  
+  
+    
+<link rel="stylesheet" href="https://unpkg.com/gitalk/dist/gitalk.css">
+
+  
+  <script src="//cdnjs.cloudflare.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+  <script src="//cdnjs.cloudflare.com/ajax/libs/geopattern/1.2.3/js/geopattern.min.js"></script>
+  <script src="//cdnjs.cloudflare.com/ajax/libs/nprogress/0.2.0/nprogress.min.js"></script>
+  
+    
+<script src="/js/qrious.js"></script>
+
+  
+  
+  
+    
+<script src="https://unpkg.com/gitalk/dist/gitalk.min.js"></script>
+
+  
+  
+  
+    <!-- MathJax support START -->
+    <script type="text/x-mathjax-config">
+      MathJax.Hub.Config({
+        tex2jax: {
+          inlineMath: [ ['$','$'], ["\\(","\\)"]  ],
+          processEscapes: true,
+          skipTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
+        }
+      });
+    </script>
+
+    <script type="text/x-mathjax-config">
+      MathJax.Hub.Queue(function() {
+        var all = MathJax.Hub.getAllJax(), i;
+        for (i=0; i < all.length; i += 1) {
+          all[i].SourceElement().parentNode.className += ' has-jax';
+        }
+      });
+    </script>
+    <script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <!-- MathJax support END -->
+  
+
+
+  
+<meta name="generator" content="Hexo 4.2.0"></head>
+<div class="wechat-share">
+  <img src="http://cdn.zmoyi.com/static/images/logo.png" />
+</div>
+
+  <body>
+    <header class="header fixed-header">
+  <div class="header-container">
+    <a class="home-link" href="/">
+      <div class="logo"></div>
+      <span>Fane'Blog</span>
+    </a>
+    <ul class="right-list">
+      
+        <li class="list-item">
+          
+            <a href="/" class="item-link">Home</a>
+          
+        </li>
+      
+        <li class="list-item">
+          
+            <a href="/tags/" class="item-link">Tags</a>
+          
+        </li>
+      
+        <li class="list-item">
+          
+            <a href="/archives/" class="item-link">Archives</a>
+          
+        </li>
+      
+        <li class="list-item">
+          
+            <a href="/project/" class="item-link">Projects</a>
+          
+        </li>
+      
+        <li class="list-item">
+          
+            <a href="/about/" class="item-link">About</a>
+          
+        </li>
+      
+    </ul>
+    <div class="menu">
+      <span class="icon-bar"></span>
+      <span class="icon-bar"></span>
+      <span class="icon-bar"></span>
+    </div>
+    <div class="menu-mask">
+      <ul class="menu-list">
+        
+          <li class="menu-item">
+            
+              <a href="/" class="menu-link">Home</a>
+            
+          </li>
+        
+          <li class="menu-item">
+            
+              <a href="/tags/" class="menu-link">Tags</a>
+            
+          </li>
+        
+          <li class="menu-item">
+            
+              <a href="/archives/" class="menu-link">Archives</a>
+            
+          </li>
+        
+          <li class="menu-item">
+            
+              <a href="/project/" class="menu-link">Projects</a>
+            
+          </li>
+        
+          <li class="menu-item">
+            
+              <a href="/about/" class="menu-link">About</a>
+            
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+</header>
+
+    <div id="article-banner">
+  <h2>Go并发编程（十三）调度器的其他细节</h2>
+  <p class="post-date">2020-05-22</p>
+  <div class="arrow-down">
+    <a href="javascript:;"></a>
+  </div>
+</div>
+<main class="app-body flex-box">
+  <!-- Article START -->
+  <article class="post-article">
+    <section class="markdown-content"><blockquote>
+<p>调度器是Go运行时系统中最重要的模块。我们再聊一些它的其他细节。</p>
+</blockquote>
+<h2 id="g0和m0"><a href="#g0和m0" class="headerlink" title="g0和m0"></a>g0和m0</h2><p>运行时系统中的每个M都会拥有一个特殊的G，一般称为M的<strong>g0</strong>。M的g0管辖的内存称为M的<strong>调度栈</strong>。可以说，M的g0对应于操作系统为相应线程创建的栈。因此M的调度栈也可以称为OS线程栈或系统栈（参见<code>runtime.systemstack</code>函数）。</p>
+<p>M的g0是由Go运行时系统在初始化M的时创建并分配给该M的。M的g0一般用于执行调度、垃圾回收、栈管理等方面的任务。</p>
+<blockquote>
+<p>BTW，M还会拥有一个专门用于处理信号的G，称为<code>gsignal</code>。它的栈可称为信号栈。系统栈和信号栈不会自动增长，但一定会有足够的空间执行代码。</p>
+</blockquote>
+<p>除了g0之外，其它由M运行的G都可以视作用户级别的G，简称<strong>用户G</strong>，这些M的g0和<code>gsignal</code>都可以称为<strong>系统G</strong>。Go运行时系统会进行切换，以使每个M都能运行用户G和它的g0。与用户G不同，g0不会被阻塞，也不会包含在任何G队列或列表中。还有，它的栈也不会在垃圾回收的期间被扫描。</p>
+<p>除了每个M都拥有属于它自己的g0之外，还存在一个<code>runtime.g0</code>。<code>runtime.g0</code>用于执行引导程序，它运行在Go程序拥有的第一个内核线程中，这个内核线程也称为<code>runtime.m0</code>。<code>runtime.m0</code>和<code>runtime.g0</code>都是静态分配的，因此引导程序无需为它们分配内存。<code>runtime.m0</code>的g0即<code>runtime.g0</code>。</p>
+<h2 id="调度器锁和原子操作"><a href="#调度器锁和原子操作" class="headerlink" title="调度器锁和原子操作"></a>调度器锁和原子操作</h2><blockquote>
+<p> 前面两三篇文章中很多流程都用到了调度器锁。</p>
+</blockquote>
+<p>每个M都可能执行调度任务，这此任务在时间上可能存在冲突，即并发的调度。因此调度器会在读写一些全局变量以及它的字段的时候动用调度器锁进行保护。</p>
+<p>例如， 在对核心元素容器（如<code>runtime.allp</code>和<code>runtime.sched.runqhead</code>）中的元素进行存取，以及修改相应计数器（即<code>sched.stopwait</code>和<code>sched.nmidle</code>等）时，都会锁定调度器锁。其中<code>sched.nmidle</code>用于对空闲的M进行计数。</p>
+<p>此外，Go运行时系统在一些需要保证并发安全的变量的存取上使用了原子操作。众所周知，原子操作要比锁操作轻量很多，相对的更能节省系统资源和提升系统性能。</p>
+<p>例如，在对<code>sched.nmspinning</code>（对正在自旋的M进行计数）、<code>sched.ngsys</code>（对系统G进行计数）等变量读写时会用到原子操作。又例如，在转换某个G的状态时也会用到原子操作。</p>
+<p>调度器在自身的并发执行上做了很多有效的约束和控制，兼顾正确性和可伸缩性。</p>
+<h2 id="调整GC"><a href="#调整GC" class="headerlink" title="调整GC"></a>调整GC</h2><p>目前，Go的GC是基于<strong>CMS（Concurrent Mark-Sweep，并发的标记-清扫）算法</strong>的。未来也有改用更高效GC算法的可能。Go的GC也是非分代的和非压缩的。</p>
+<p>当前的GC有3种执行模式，如下：</p>
+<ul>
+<li><strong>gcBackgroundMode</strong>：并发的执行垃圾收集（标记）和清扫。</li>
+<li><strong>goForceMode</strong>：串行的执行垃圾收集（即执行时停止调度），但并发的执行清扫。</li>
+<li><strong>goForceBlockMode</strong>：串行的执行垃圾收集清扫。</li>
+</ul>
+<p>调度器驱使的自动GC和系统监测任务中的强制GC，会以<code>gcBackgroundMode</code>模式执行。但是前者会检查Go程序当前的内存使用量，仅当使用增量过大时才会真正执行GC。然而，后者会无视这个前提条件。</p>
+<p>我们可以通过环境变量<code>GODEBUG</code>控制自动GC的并发性。只要使其值包含<code>gcstoptheworld=1</code>或<code>gcstoptheworld=2</code>，就可以让GC的执行模式由<code>gcBackgroundMode</code>变成<code>goForceMode</code>或<code>goForceBlockMode</code>，这相当于让并发进入调试模式。</p>
+<p>简单来讲，GC会在为Go程序分配的内存翻倍增长时被触发。Go运行时系统会在分配新内存时检查Go程序的内存使用量。我们可以通过调用<code>runtime/debug.SetGCPercent</code>函数改变这个增量的阈值。</p>
+<p><code>SetGCPercent</code>函数接受一个<code>int</code>类型的参数，其含义是：<strong>在新分配的内存是上次记录的已分配内存的百分之几时触发GC</strong>。显然，这个参数不应该是负数，否则会导致自动GC的关闭；<strong>Go运行时系统对此的预设值是100</strong>。另外，<code>SetGCPercent</code>会返回旧的增量阈值。</p>
+<p>设置环境变量<code>GOGC</code>也可以达到同样的效果，其值的含义和设置规则也与<code>SetGCPercent</code>函数相同。另外把<code>GOGC</code>的值设置为<code>off</code>也会关闭自动GC。不过要注意，和<code>GODEBUG</code>一样，对<code>GOGC</code>的设置需要在Go程序启动之前进行，否则不生效。</p>
+<p>关闭自动GC请意味着我们要在程序中手动GC了。调度<code>runtime.GC</code>函数可以手动触发一次GC，不过会阻塞调用方直到GC完成。注意，这种模式下的GC会以<code>goForceBlockMode</code>模式执行。此外，调用<code>runtime/debug</code>包的<code>FreeOSMemory</code>函数也可以手动触发一次完全串行的GC，并且在GC完成后还会做一次清扫堆的操作。还有，这两者在执行时都不会检查Go程序的内存使用增量。</p>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>好了，上面就先总结了Go调度器的三个其他的细节。</p>
+</section>
+    <!-- Tags START -->
+    
+      <div class="tags">
+        <span>Tags:</span>
+        
+  <a href="/tags#Go" >
+    <span class="tag-code">Go</span>
+  </a>
+
+      </div>
+    
+    <!-- Tags END -->
+    <!-- NAV START -->
+    
+  <div class="nav-container">
+    <!-- reverse left and right to put prev and next in a more logic postition -->
+    
+      <a class="nav-left" href="/2020/05/22/GoConcurrent12-ChangePMaxNum/">
+        <span class="nav-arrow">← </span>
+        
+          Go并发编程（十二）修改P的最大数量
+        
+      </a>
+    
+    
+  </div>
+
+    <!-- NAV END -->
+    <!-- 打赏 START -->
+    
+      <div class="money-like">
+        <div class="reward-btn">
+          赏
+          <span class="money-code">
+            <span class="alipay-code">
+              <div class="code-image"></div>
+              <b>使用支付宝打赏</b>
+            </span>
+            <span class="wechat-code">
+              <div class="code-image"></div>
+              <b>使用微信打赏</b>
+            </span>
+          </span>
+        </div>
+        <p class="notice">若你觉得我的文章对你有帮助，欢迎点击上方按钮对我打赏</p>
+      </div>
+    
+    <!-- 打赏 END -->
+    <!-- 二维码 START -->
+    
+      <div class="qrcode">
+        <canvas id="share-qrcode"></canvas>
+        <p class="notice">扫描二维码，分享此文章</p>
+      </div>
+    
+    <!-- 二维码 END -->
+    
+      <!-- Gitalk START -->
+      <div id="gitalk-container"></div>
+      <!-- Gitalk END -->
+    
+  </article>
+  <!-- Article END -->
+  <!-- Catalog START -->
+  
+    <aside class="catalog-container">
+  <div class="toc-main">
+    <strong class="toc-title">目录</strong>
+    
+      <ol class="toc-nav"><li class="toc-nav-item toc-nav-level-2"><a class="toc-nav-link" href="#g0和m0"><span class="toc-nav-text">g0和m0</span></a></li><li class="toc-nav-item toc-nav-level-2"><a class="toc-nav-link" href="#调度器锁和原子操作"><span class="toc-nav-text">调度器锁和原子操作</span></a></li><li class="toc-nav-item toc-nav-level-2"><a class="toc-nav-link" href="#调整GC"><span class="toc-nav-text">调整GC</span></a></li><li class="toc-nav-item toc-nav-level-2"><a class="toc-nav-link" href="#总结"><span class="toc-nav-text">总结</span></a></li></ol>
+    
+  </div>
+</aside>
+  
+  <!-- Catalog END -->
+</main>
+
+<script>
+  (function () {
+    var url = 'http://zmoyi.com/2020/05/22/GoConcurrent13-OtherDetails/';
+    var banner = ''
+    if (banner !== '' && banner !== 'undefined' && banner !== 'null') {
+      $('#article-banner').css({
+        'background-image': 'url(' + banner + ')'
+      })
+    } else {
+      $('#article-banner').geopattern(url)
+    }
+    $('.header').removeClass('fixed-header')
+
+    // error image
+    $(".markdown-content img").on('error', function() {
+      $(this).attr('src', 'http://file.muyutech.com/error-img.png')
+      $(this).css({
+        'cursor': 'default'
+      })
+    })
+
+    // zoom image
+    $(".markdown-content img").on('click', function() {
+      var src = $(this).attr('src')
+      if (src !== 'http://file.muyutech.com/error-img.png') {
+        var imageW = $(this).width()
+        var imageH = $(this).height()
+
+        var zoom = ($(window).width() * 0.95 / imageW).toFixed(2)
+        zoom = zoom < 1 ? 1 : zoom
+        zoom = zoom > 2 ? 2 : zoom
+        var transY = (($(window).height() - imageH) / 2).toFixed(2)
+
+        $('body').append('<div class="image-view-wrap"><div class="image-view-inner"><img src="'+ src +'" /></div></div>')
+        $('.image-view-wrap').addClass('wrap-active')
+        $('.image-view-wrap img').css({
+          'width': `${imageW}`,
+          'transform': `translate3d(0, ${transY}px, 0) scale3d(${zoom}, ${zoom}, 1)`
+        })
+        $('html').css('overflow', 'hidden')
+
+        $('.image-view-wrap').on('click', function() {
+          $(this).remove()
+          $('html').attr('style', '')
+        })
+      }
+    })
+  })();
+</script>
+
+
+  <script>
+    var qr = new QRious({
+      element: document.getElementById('share-qrcode'),
+      value: document.location.href
+    });
+  </script>
+
+
+
+
+
+  <script type="text/javascript">
+    var gitalk = new Gitalk({
+      clientID: '595f268d984e0123456f',
+      clientSecret: 'e4c1799bc7a82448653f758927992c6217beb7cb',
+      id: window.location.pathname,
+      repo: 'fanezhao.github.io',
+      owner: 'fanezhao',
+      admin: 'fanezhao'
+    })
+    gitalk.render('gitalk-container')
+  </script>
+
+
+
+
+    <div class="scroll-top">
+  <span class="arrow-icon"></span>
+</div>
+    <footer class="app-footer">
+  <p class="copyright">
+    &copy;2020 <a href="https://github.com/fanezhao" target="_blank" rel="noopener">Fane</a>
+    | PV: <span id="busuanzi_value_site_pv"></span>
+    | UV: <span id="busuanzi_value_site_uv"></span>
+    | PPV: <span id="busuanzi_value_page_pv"></span>
+    <br>
+  </p>
+  <div style="width:350px;margin:0 auto; padding:0px 0; overflow: hidden;">
+    <a href="http://www.beian.miit.gov.cn/" target="_blank" rel="noopener" style="display:inline-block;text-decoration: none; height:20px;line-height:20px;float: left;">
+        <p style="float:left;height:20px;line-height:20px;margin: 0px 0px 0px 5px; color:#939393;">浙ICP备20012854号</p >
+    </a >
+    <a href="http://www.beian.gov.cn/portal/registerSystemInfo?recordcode=33011002014629" target="_blank" rel="noopener" style="display:inline-block; text-decoration: none; height:20px; line-height:20px; float:right;">
+        <img src="http://cdn.zmoyi.com/static/images/%E5%A4%87%E6%A1%88%E5%9B%BE%E6%A0%87.png" style="float:left;" alt="">
+        <p style="float:left;height:20px;line-height:20px;margin: 0px 0px 0px 5px; color:#939393;">浙公网安备 33011002014629号</p >
+    </a >
+  </div>
+</footer>
+
+<script>
+  function async(u, c) {
+    var d = document, t = 'script',
+      o = d.createElement(t),
+      s = d.getElementsByTagName(t)[0];
+    o.src = u;
+    if (c) { o.addEventListener('load', function (e) { c(null, e); }, false); }
+    s.parentNode.insertBefore(o, s);
+  }
+</script>
+<script>
+  async("//cdnjs.cloudflare.com/ajax/libs/fastclick/1.0.6/fastclick.min.js", function(){
+    FastClick.attach(document.body);
+  })
+</script>
+
+<script>
+  var hasLine = 'true';
+  async("//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/highlight.min.js", function(){
+    $('figure pre').each(function(i, block) {
+      var figure = $(this).parents('figure');
+      if (hasLine === 'false') {
+        figure.find('.gutter').hide();
+      }
+      var lang = figure.attr('class').split(' ')[1] || 'code';
+      var codeHtml = $(this).html();
+      var codeTag = document.createElement('code');
+      codeTag.className = lang;
+      codeTag.innerHTML = codeHtml;
+      $(this).attr('class', '').empty().html(codeTag);
+      figure.attr('data-lang', lang.toUpperCase());
+      hljs.highlightBlock(block);
+    });
+  })
+</script>
+<!-- Baidu Tongji -->
+
+<script>
+    var _baId = '1da5032819b12da8d4c1fb82c6f21ffa';
+    // Originial
+    var _hmt = _hmt || [];
+    (function() {
+      var hm = document.createElement("script");
+      hm.src = "//hm.baidu.com/hm.js?" + _baId;
+      var s = document.getElementsByTagName("script")[0];
+      s.parentNode.insertBefore(hm, s);
+    })();
+</script>
+
+<!-- busuanzi -->
+<script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+
+<script src="/js/script.js"></script>
+
+  </body>
+</html>
