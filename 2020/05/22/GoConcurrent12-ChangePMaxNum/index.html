@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html>
+  <head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0" name="viewport">
+  <meta name="description" content="本博客于 2020 年建站，记录了我在工作过程中学到的技术、运营及产品等知识，并以原创文章的形式分享给大家。未来仍然将坚持不懈的分享技术知识、工作经历等原创内容。 希望看到本博客的前辈多指点扶正、同行们能一起共同学习与进步、正在学习的小伙伴能通过本博客学到对自己有用的知识。">
+  <meta name="keyword" content="ZMOYI, 原创博客, Java, Golang, Linux, 全栈, 后端开发, 前端开发">
+  
+    <link rel="shortcut icon" type="image/ico" href="http://cdn.zmoyi.com/static/images/ico.png"/>
+  
+  <title>
+    
+      Go并发编程（十二）修改P的最大数量 | Fane&#39;Blog
+    
+  </title>
+  <link href="//cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css" rel="stylesheet">
+  <link href="//cdnjs.cloudflare.com/ajax/libs/nprogress/0.2.0/nprogress.min.css" rel="stylesheet">
+  <link href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/tomorrow.min.css" rel="stylesheet">
+  
+<link rel="stylesheet" href="/css/style.css">
+
+  
+  
+    
+<link rel="stylesheet" href="https://unpkg.com/gitalk/dist/gitalk.css">
+
+  
+  <script src="//cdnjs.cloudflare.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+  <script src="//cdnjs.cloudflare.com/ajax/libs/geopattern/1.2.3/js/geopattern.min.js"></script>
+  <script src="//cdnjs.cloudflare.com/ajax/libs/nprogress/0.2.0/nprogress.min.js"></script>
+  
+    
+<script src="/js/qrious.js"></script>
+
+  
+  
+  
+    
+<script src="https://unpkg.com/gitalk/dist/gitalk.min.js"></script>
+
+  
+  
+  
+    <!-- MathJax support START -->
+    <script type="text/x-mathjax-config">
+      MathJax.Hub.Config({
+        tex2jax: {
+          inlineMath: [ ['$','$'], ["\\(","\\)"]  ],
+          processEscapes: true,
+          skipTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
+        }
+      });
+    </script>
+
+    <script type="text/x-mathjax-config">
+      MathJax.Hub.Queue(function() {
+        var all = MathJax.Hub.getAllJax(), i;
+        for (i=0; i < all.length; i += 1) {
+          all[i].SourceElement().parentNode.className += ' has-jax';
+        }
+      });
+    </script>
+    <script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <!-- MathJax support END -->
+  
+
+
+  
+<meta name="generator" content="Hexo 4.2.0"></head>
+<div class="wechat-share">
+  <img src="http://cdn.zmoyi.com/static/images/logo.png" />
+</div>
+
+  <body>
+    <header class="header fixed-header">
+  <div class="header-container">
+    <a class="home-link" href="/">
+      <div class="logo"></div>
+      <span>Fane'Blog</span>
+    </a>
+    <ul class="right-list">
+      
+        <li class="list-item">
+          
+            <a href="/" class="item-link">Home</a>
+          
+        </li>
+      
+        <li class="list-item">
+          
+            <a href="/tags/" class="item-link">Tags</a>
+          
+        </li>
+      
+        <li class="list-item">
+          
+            <a href="/archives/" class="item-link">Archives</a>
+          
+        </li>
+      
+        <li class="list-item">
+          
+            <a href="/project/" class="item-link">Projects</a>
+          
+        </li>
+      
+        <li class="list-item">
+          
+            <a href="/about/" class="item-link">About</a>
+          
+        </li>
+      
+    </ul>
+    <div class="menu">
+      <span class="icon-bar"></span>
+      <span class="icon-bar"></span>
+      <span class="icon-bar"></span>
+    </div>
+    <div class="menu-mask">
+      <ul class="menu-list">
+        
+          <li class="menu-item">
+            
+              <a href="/" class="menu-link">Home</a>
+            
+          </li>
+        
+          <li class="menu-item">
+            
+              <a href="/tags/" class="menu-link">Tags</a>
+            
+          </li>
+        
+          <li class="menu-item">
+            
+              <a href="/archives/" class="menu-link">Archives</a>
+            
+          </li>
+        
+          <li class="menu-item">
+            
+              <a href="/project/" class="menu-link">Projects</a>
+            
+          </li>
+        
+          <li class="menu-item">
+            
+              <a href="/about/" class="menu-link">About</a>
+            
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+</header>
+
+    <div id="article-banner">
+  <h2>Go并发编程（十二）修改P的最大数量</h2>
+  <p class="post-date">2020-05-22</p>
+  <div class="arrow-down">
+    <a href="javascript:;"></a>
+  </div>
+</div>
+<main class="app-body flex-box">
+  <!-- Article START -->
+  <article class="post-article">
+    <section class="markdown-content"><blockquote>
+<p>在<a href="http://zmoyi.com/2020/05/09/GoConcurrent10-GoThreadModel/">Go线程实现模型</a>中，P起到了承上启下的作用，P的最大数量的变更就意味着要改变G运行的上下文环境，这种变更也直接影响着G程序的并发性能。本章来说一下其中的流程。</p>
+</blockquote>
+<h2 id="修改P的最大数量"><a href="#修改P的最大数量" class="headerlink" title="修改P的最大数量"></a>修改P的最大数量</h2><p><strong>在默认情况下，P的最大数量等于正在运行当前Go程序的机器的CPU核心的数量</strong>。一台计算机CPU核心的数量，说明了它能够在同一时刻执行多少个程序指令。我们可以通过调用<code>runtime.GOMAXPROCS</code>函数改变这个最大数量，但是这样做有时会有较大损耗。</p>
+<p>当我们调用<code>runtime.GOMAXPROCS</code>函数时，它会先进行下面两项检查，以确保变更合法和有效。</p>
+<ul>
+<li>如果传入的参数值（新值）比运行时系统为此设定的硬性上限值（256）大，且无论传入的新值有多大，最终的值也不会超过256。这是运行时系统对自身的一种保护。</li>
+<li>如果新值不是正整数，或者与存储在运行时系统中的P最大数量值（旧值）相同，那么该函数会直接忽略变更而直接返回旧值。</li>
+</ul>
+<p>一旦通过这两项检查，该函数会先通过调度器停止一切调度工作（Stop The World），然后它会暂存新值、重启调度工作（Start The World），最后将旧值作为结果返回，重启调度工作由<code>runtime.startTheWorldWithSema</code>函数完成。</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">startTheWorldWithSema</span><span class="params">(emitTraceEvent <span class="keyword">bool</span>)</span> <span class="title">int64</span></span> &#123;</span><br><span class="line">    mp := acquirem() <span class="comment">// disable preemption because it can be holding p in a local var</span></span><br><span class="line">    <span class="keyword">if</span> netpollinited() &#123;</span><br><span class="line">        list := netpoll(<span class="number">0</span>) <span class="comment">// non-blocking</span></span><br><span class="line">        injectglist(&amp;list)</span><br><span class="line">    &#125;</span><br><span class="line">    lock(&amp;sched.lock)</span><br><span class="line"></span><br><span class="line">    procs := gomaxprocs</span><br><span class="line">    <span class="keyword">if</span> newprocs != <span class="number">0</span> &#123;</span><br><span class="line">        procs = newprocs</span><br><span class="line">        newprocs = <span class="number">0</span></span><br><span class="line">    &#125;</span><br><span class="line">    <span class="comment">// P的最大数量变更流程</span></span><br><span class="line">    p1 := procresize(procs)</span><br><span class="line">    sched.gcwaiting = <span class="number">0</span></span><br><span class="line">    <span class="keyword">if</span> sched.sysmonwait != <span class="number">0</span> &#123;</span><br><span class="line">        sched.sysmonwait = <span class="number">0</span></span><br><span class="line">        notewakeup(&amp;sched.sysmonnote)</span><br><span class="line">    &#125;</span><br><span class="line">    unlock(&amp;sched.lock)</span><br><span class="line">	<span class="comment">// 遍历拥有可运行G的P的列表，保证里面的一定能与一个M产生关联。</span></span><br><span class="line">    <span class="keyword">for</span> p1 != <span class="literal">nil</span> &#123;</span><br><span class="line">        p := p1</span><br><span class="line">        p1 = p1.link.ptr()</span><br><span class="line">        <span class="keyword">if</span> p.m != <span class="number">0</span> &#123;</span><br><span class="line">            mp := p.m.ptr()</span><br><span class="line">            p.m = <span class="number">0</span></span><br><span class="line">            <span class="keyword">if</span> mp.nextp != <span class="number">0</span> &#123;</span><br><span class="line">                throw(<span class="string">"startTheWorld: inconsistent mp-&gt;nextp"</span>)</span><br><span class="line">            &#125;</span><br><span class="line">            mp.nextp.set(p)</span><br><span class="line">            notewakeup(&amp;mp.park)</span><br><span class="line">        &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">            <span class="comment">// Start M to run P.  Do not start another M below.</span></span><br><span class="line">            newm(<span class="literal">nil</span>, p)</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// Capture start-the-world time before doing clean-up tasks.</span></span><br><span class="line">    startTime := nanotime()</span><br><span class="line">    <span class="keyword">if</span> emitTraceEvent &#123;</span><br><span class="line">        traceGCSTWDone()</span><br><span class="line">    &#125;</span><br><span class="line">    </span><br><span class="line">    <span class="keyword">if</span> atomic.Load(&amp;sched.npidle) != <span class="number">0</span> &amp;&amp; atomic.Load(&amp;sched.nmspinning) == <span class="number">0</span> &#123;</span><br><span class="line">        wakep()</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    releasem(mp)</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> startTime</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+
+
+<p>在调度工作真正被重启之前，调度器如果发现有新值暂存，那么就会进入P的最大数量的变更流程。此流程由<code>runtime</code>包的<code>procresize</code>函数实现。</p>
+<h2 id="P的最大数量的变更流程"><a href="#P的最大数量的变更流程" class="headerlink" title="P的最大数量的变更流程"></a>P的最大数量的变更流程</h2><figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">procresize</span><span class="params">(nprocs <span class="keyword">int32</span>)</span> *<span class="title">p</span></span> &#123;</span><br><span class="line">	old := gomaxprocs</span><br><span class="line">    <span class="comment">// 新旧值合法性检查</span></span><br><span class="line">	<span class="keyword">if</span> old &lt; <span class="number">0</span> || nprocs &lt;= <span class="number">0</span> &#123;</span><br><span class="line">		throw(<span class="string">"procresize: invalid arg"</span>)</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	<span class="comment">// ......</span></span><br><span class="line"></span><br><span class="line">	<span class="comment">// 全局P列表扩容</span></span><br><span class="line">	<span class="keyword">if</span> nprocs &gt; <span class="keyword">int32</span>(<span class="built_in">len</span>(allp)) &#123;</span><br><span class="line">		lock(&amp;allpLock)</span><br><span class="line">		<span class="keyword">if</span> nprocs &lt;= <span class="keyword">int32</span>(<span class="built_in">cap</span>(allp)) &#123;</span><br><span class="line">			allp = allp[:nprocs]</span><br><span class="line">		&#125; <span class="keyword">else</span> &#123;</span><br><span class="line">			nallp := <span class="built_in">make</span>([]*p, nprocs)</span><br><span class="line">			<span class="comment">// Copy everything up to allp's cap so we</span></span><br><span class="line">			<span class="comment">// never lose old allocated Ps.</span></span><br><span class="line">			<span class="built_in">copy</span>(nallp, allp[:<span class="built_in">cap</span>(allp)])</span><br><span class="line">			allp = nallp</span><br><span class="line">		&#125;</span><br><span class="line">		unlock(&amp;allpLock)</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	<span class="comment">// 新建P填充全局P列表</span></span><br><span class="line">	<span class="keyword">for</span> i := old; i &lt; nprocs; i++ &#123;</span><br><span class="line">		pp := allp[i]</span><br><span class="line">		<span class="keyword">if</span> pp == <span class="literal">nil</span> &#123;</span><br><span class="line">			pp = <span class="built_in">new</span>(p)</span><br><span class="line">		&#125;</span><br><span class="line">		pp.init(i)</span><br><span class="line">		atomicstorep(unsafe.Pointer(&amp;allp[i]), unsafe.Pointer(pp))</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	<span class="comment">// 当前M不能没有P，所以程序会试图把该M之前的P还给它，若发现那个P已经被清理，就把全局列表中的第一个P给它。</span></span><br><span class="line">	_g_ := getg()</span><br><span class="line">	<span class="keyword">if</span> _g_.m.p != <span class="number">0</span> &amp;&amp; _g_.m.p.ptr().id &lt; nprocs &#123;</span><br><span class="line">		<span class="comment">// continue to use the current P</span></span><br><span class="line">		_g_.m.p.ptr().status = _Prunning</span><br><span class="line">		_g_.m.p.ptr().mcache.prepareForSweep()</span><br><span class="line">	&#125; <span class="keyword">else</span> &#123;</span><br><span class="line">		<span class="keyword">if</span> _g_.m.p != <span class="number">0</span> &#123;</span><br><span class="line">			<span class="keyword">if</span> trace.enabled &#123;</span><br><span class="line">				traceGoSched()</span><br><span class="line">				traceProcStop(_g_.m.p.ptr())</span><br><span class="line">			&#125;</span><br><span class="line">			_g_.m.p.ptr().m = <span class="number">0</span></span><br><span class="line">		&#125;</span><br><span class="line">		_g_.m.p = <span class="number">0</span></span><br><span class="line">		_g_.m.mcache = <span class="literal">nil</span></span><br><span class="line">		p := allp[<span class="number">0</span>]</span><br><span class="line">		p.m = <span class="number">0</span></span><br><span class="line">		p.status = _Pidle</span><br><span class="line">		acquirep(p)</span><br><span class="line">		<span class="keyword">if</span> trace.enabled &#123;</span><br><span class="line">			traceGoStart()</span><br><span class="line">		&#125;</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	<span class="comment">// 清理无用的P，将其设置成Pdead状态</span></span><br><span class="line">	<span class="keyword">for</span> i := nprocs; i &lt; old; i++ &#123;</span><br><span class="line">		p := allp[i]</span><br><span class="line">		p.destroy()</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	<span class="comment">// Trim allp.</span></span><br><span class="line">	<span class="keyword">if</span> <span class="keyword">int32</span>(<span class="built_in">len</span>(allp)) != nprocs &#123;</span><br><span class="line">		lock(&amp;allpLock)</span><br><span class="line">		allp = allp[:nprocs]</span><br><span class="line">		unlock(&amp;allpLock)</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="comment">// 最后，程序会再检查一遍前N个P。如果它的可运行G队列为空，就把它放入调度器的空闲P列表，否则就试图拿一个M与之绑定，然后把它放入本地的可运行P列表。</span></span><br><span class="line">	<span class="keyword">var</span> runnablePs *p</span><br><span class="line">	<span class="keyword">for</span> i := nprocs - <span class="number">1</span>; i &gt;= <span class="number">0</span>; i-- &#123;</span><br><span class="line">		p := allp[i]</span><br><span class="line">		<span class="keyword">if</span> _g_.m.p.ptr() == p &#123;</span><br><span class="line">			<span class="keyword">continue</span></span><br><span class="line">		&#125;</span><br><span class="line">		p.status = _Pidle</span><br><span class="line">		<span class="keyword">if</span> runqempty(p) &#123;</span><br><span class="line">			pidleput(p)</span><br><span class="line">		&#125; <span class="keyword">else</span> &#123;</span><br><span class="line">			p.m.set(mget())</span><br><span class="line">			p.link.set(runnablePs)</span><br><span class="line">			runnablePs = p</span><br><span class="line">		&#125;</span><br><span class="line">	&#125;</span><br><span class="line">	stealOrder.reset(<span class="keyword">uint32</span>(nprocs))</span><br><span class="line">	<span class="keyword">var</span> int32p *<span class="keyword">int32</span> = &amp;gomaxprocs</span><br><span class="line">	atomic.Store((*<span class="keyword">uint32</span>)(unsafe.Pointer(int32p)), <span class="keyword">uint32</span>(nprocs))</span><br><span class="line">	<span class="keyword">return</span> runnablePs</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+
+
+<p>在此流程中，旧值会先被获取。如果发现旧值或新值不合法，程序就会发起一个运行时<code>panic</code>，程序终止。不过由于<code>runtime.GOMAXPROCS</code>函数已做过检查，所以这里永远不会发生。</p>
+<p>在通过对旧值和新值检查之后，程序会对全局P列表中的前<em>i</em>个P进行检查和必要的初始化。<strong>这里的<em>i</em>代表新值</strong>。如果全局P列表中的P的数量不够，程序还会新建相应数量的P，并把它们追加到全局P列表中，新P的状态为<code>Pgcstop</code>，以表示它还不能使用。</p>
+<blockquote>
+<p>BTW，全局P列表中的所有P的可运行G队列的固定长度都是256。如果这个队列满了，程序就会把其中半数的可运行G转移到调度器的可运行G队列中。</p>
+</blockquote>
+<p>在完成对前<em>i</em>个P的重新设置之后，程序对全局P列表中的第<em>i</em>+1个到<em>j</em>个P（如果有的话）进行清理。<strong>这里<em>j</em>代表旧值</strong>。</p>
+<p>其中，最重要的工作就是把这些P的可运行G队列中的G及其<code>runnext</code>字段中的G（如果有的话）全部取出，并依次放入调度器的可运行G队列中。程序也会 试图获取这些P持有的GC标记专用G，若取到，同样放入调度器的可运行G队列。此外，程序还会把这些P的自由G列表中的G，转移到调度器的自由G列表中。</p>
+<p>然后，这些P都会被设置成<code>Pdead</code>状态，以便之后进行销毁。之所以不能直接销毁它们，是因为它们可能会这被正在进行系统调用的M引用。如果某个P被这样的M引用但却被销毁了，就会在该M完成系统调用的时候造成错误。</p>
+<p>至此，全局P列表中的P都已被重置，这也包括了与执行<code>procresize</code>函数当前M关联的那个P。当前M不能没有P，所以程序会试图把该M之前的P还给它，若发现那个P已经被清理，就把全局列表中的第一个P给它。</p>
+<p>最后，程序会再检查一遍前<em>N</em>个P。如果它的可运行G队列为空，就把它放入调度器的空闲P列表，否则就试图拿一个M与之绑定，然后把它放入本地的可运行P列表。这样就筛选出一个拥有可运行G的P的列表，<code>procresiaze</code>函数会把这个列表作为结果值返回。负责重启调度工作的程序会先检查这个列表中的P，以保证它们一定能与一个M产生关联。随后，程序会让与这些P关联的M都运作起来。</p>
+<p>以上就是变更P的最大数量发生的事情，下面是其核心流程图。</p>
+<img src="http://cdn.zmoyi.com/static/images/变更P最大数量的核心流程.jpg">
+
+<p>再次强调，虽然可以通过<code>runtime.GOMAXPROCS</code>函数改变运行时系统中P的最大数量，但是它们会引起调度工作的暂停。对于响应时间敏感的Go程序，这种暂停会带来一定的性能影响。所以请牢记此函数的正确使用方式（参考<a href="http://zmoyi.com/2020/05/09/GoConcurrent10-GoThreadModel/">Go并发编程模型</a>)）。</p>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>综上，P的最大数量的变更对G的上下文环境影响很大，修改P的方式有两种：</p>
+<ul>
+<li>调用函数<code>runtime.GOMAXPROCS</code>传入想要设定的数量。</li>
+<li>在Go程序运行前设置环境变量<code>GOMAXPROCS</code>的值。</li>
+</ul>
+<p>后一种对程序影响比较小。这里我们主要学习第一种修改方式的变更流程和可能会对程序造成的影响。并在最后强调了通过这种方式修改P的最大数量的正确方式。</p>
+</section>
+    <!-- Tags START -->
+    
+      <div class="tags">
+        <span>Tags:</span>
+        
+  <a href="/tags#Go" >
+    <span class="tag-code">Go</span>
+  </a>
+
+      </div>
+    
+    <!-- Tags END -->
+    <!-- NAV START -->
+    
+  <div class="nav-container">
+    <!-- reverse left and right to put prev and next in a more logic postition -->
+    
+      <a class="nav-left" href="/2020/05/18/GoConcurrent11-Schedt/">
+        <span class="nav-arrow">← </span>
+        
+          Go并发编程（十一）调度器
+        
+      </a>
+    
+    
+  </div>
+
+    <!-- NAV END -->
+    <!-- 打赏 START -->
+    
+      <div class="money-like">
+        <div class="reward-btn">
+          赏
+          <span class="money-code">
+            <span class="alipay-code">
+              <div class="code-image"></div>
+              <b>使用支付宝打赏</b>
+            </span>
+            <span class="wechat-code">
+              <div class="code-image"></div>
+              <b>使用微信打赏</b>
+            </span>
+          </span>
+        </div>
+        <p class="notice">若你觉得我的文章对你有帮助，欢迎点击上方按钮对我打赏</p>
+      </div>
+    
+    <!-- 打赏 END -->
+    <!-- 二维码 START -->
+    
+      <div class="qrcode">
+        <canvas id="share-qrcode"></canvas>
+        <p class="notice">扫描二维码，分享此文章</p>
+      </div>
+    
+    <!-- 二维码 END -->
+    
+      <!-- Gitalk START -->
+      <div id="gitalk-container"></div>
+      <!-- Gitalk END -->
+    
+  </article>
+  <!-- Article END -->
+  <!-- Catalog START -->
+  
+    <aside class="catalog-container">
+  <div class="toc-main">
+    <strong class="toc-title">目录</strong>
+    
+      <ol class="toc-nav"><li class="toc-nav-item toc-nav-level-2"><a class="toc-nav-link" href="#修改P的最大数量"><span class="toc-nav-text">修改P的最大数量</span></a></li><li class="toc-nav-item toc-nav-level-2"><a class="toc-nav-link" href="#P的最大数量的变更流程"><span class="toc-nav-text">P的最大数量的变更流程</span></a></li><li class="toc-nav-item toc-nav-level-2"><a class="toc-nav-link" href="#总结"><span class="toc-nav-text">总结</span></a></li></ol>
+    
+  </div>
+</aside>
+  
+  <!-- Catalog END -->
+</main>
+
+<script>
+  (function () {
+    var url = 'http://zmoyi.com/2020/05/22/GoConcurrent12-ChangePMaxNum/';
+    var banner = ''
+    if (banner !== '' && banner !== 'undefined' && banner !== 'null') {
+      $('#article-banner').css({
+        'background-image': 'url(' + banner + ')'
+      })
+    } else {
+      $('#article-banner').geopattern(url)
+    }
+    $('.header').removeClass('fixed-header')
+
+    // error image
+    $(".markdown-content img").on('error', function() {
+      $(this).attr('src', 'http://file.muyutech.com/error-img.png')
+      $(this).css({
+        'cursor': 'default'
+      })
+    })
+
+    // zoom image
+    $(".markdown-content img").on('click', function() {
+      var src = $(this).attr('src')
+      if (src !== 'http://file.muyutech.com/error-img.png') {
+        var imageW = $(this).width()
+        var imageH = $(this).height()
+
+        var zoom = ($(window).width() * 0.95 / imageW).toFixed(2)
+        zoom = zoom < 1 ? 1 : zoom
+        zoom = zoom > 2 ? 2 : zoom
+        var transY = (($(window).height() - imageH) / 2).toFixed(2)
+
+        $('body').append('<div class="image-view-wrap"><div class="image-view-inner"><img src="'+ src +'" /></div></div>')
+        $('.image-view-wrap').addClass('wrap-active')
+        $('.image-view-wrap img').css({
+          'width': `${imageW}`,
+          'transform': `translate3d(0, ${transY}px, 0) scale3d(${zoom}, ${zoom}, 1)`
+        })
+        $('html').css('overflow', 'hidden')
+
+        $('.image-view-wrap').on('click', function() {
+          $(this).remove()
+          $('html').attr('style', '')
+        })
+      }
+    })
+  })();
+</script>
+
+
+  <script>
+    var qr = new QRious({
+      element: document.getElementById('share-qrcode'),
+      value: document.location.href
+    });
+  </script>
+
+
+
+
+
+  <script type="text/javascript">
+    var gitalk = new Gitalk({
+      clientID: '595f268d984e0123456f',
+      clientSecret: 'e4c1799bc7a82448653f758927992c6217beb7cb',
+      id: window.location.pathname,
+      repo: 'fanezhao.github.io',
+      owner: 'fanezhao',
+      admin: 'fanezhao'
+    })
+    gitalk.render('gitalk-container')
+  </script>
+
+
+
+
+    <div class="scroll-top">
+  <span class="arrow-icon"></span>
+</div>
+    <footer class="app-footer">
+  <p class="copyright">
+    &copy;2020 <a href="https://github.com/fanezhao" target="_blank" rel="noopener">Fane</a>
+    | PV: <span id="busuanzi_value_site_pv"></span>
+    | UV: <span id="busuanzi_value_site_uv"></span>
+    | PPV: <span id="busuanzi_value_page_pv"></span>
+    <br>
+  </p>
+  <div style="width:350px;margin:0 auto; padding:0px 0; overflow: hidden;">
+    <a href="http://www.beian.miit.gov.cn/" target="_blank" rel="noopener" style="display:inline-block;text-decoration: none; height:20px;line-height:20px;float: left;">
+        <p style="float:left;height:20px;line-height:20px;margin: 0px 0px 0px 5px; color:#939393;">浙ICP备20012854号</p >
+    </a >
+    <a href="http://www.beian.gov.cn/portal/registerSystemInfo?recordcode=33011002014629" target="_blank" rel="noopener" style="display:inline-block; text-decoration: none; height:20px; line-height:20px; float:right;">
+        <img src="http://cdn.zmoyi.com/static/images/%E5%A4%87%E6%A1%88%E5%9B%BE%E6%A0%87.png" style="float:left;" alt="">
+        <p style="float:left;height:20px;line-height:20px;margin: 0px 0px 0px 5px; color:#939393;">浙公网安备 33011002014629号</p >
+    </a >
+  </div>
+</footer>
+
+<script>
+  function async(u, c) {
+    var d = document, t = 'script',
+      o = d.createElement(t),
+      s = d.getElementsByTagName(t)[0];
+    o.src = u;
+    if (c) { o.addEventListener('load', function (e) { c(null, e); }, false); }
+    s.parentNode.insertBefore(o, s);
+  }
+</script>
+<script>
+  async("//cdnjs.cloudflare.com/ajax/libs/fastclick/1.0.6/fastclick.min.js", function(){
+    FastClick.attach(document.body);
+  })
+</script>
+
+<script>
+  var hasLine = 'true';
+  async("//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/highlight.min.js", function(){
+    $('figure pre').each(function(i, block) {
+      var figure = $(this).parents('figure');
+      if (hasLine === 'false') {
+        figure.find('.gutter').hide();
+      }
+      var lang = figure.attr('class').split(' ')[1] || 'code';
+      var codeHtml = $(this).html();
+      var codeTag = document.createElement('code');
+      codeTag.className = lang;
+      codeTag.innerHTML = codeHtml;
+      $(this).attr('class', '').empty().html(codeTag);
+      figure.attr('data-lang', lang.toUpperCase());
+      hljs.highlightBlock(block);
+    });
+  })
+</script>
+<!-- Baidu Tongji -->
+
+<script>
+    var _baId = '1da5032819b12da8d4c1fb82c6f21ffa';
+    // Originial
+    var _hmt = _hmt || [];
+    (function() {
+      var hm = document.createElement("script");
+      hm.src = "//hm.baidu.com/hm.js?" + _baId;
+      var s = document.getElementsByTagName("script")[0];
+      s.parentNode.insertBefore(hm, s);
+    })();
+</script>
+
+<!-- busuanzi -->
+<script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+
+<script src="/js/script.js"></script>
+
+  </body>
+</html>

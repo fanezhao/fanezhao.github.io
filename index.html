@@ -158,6 +158,29 @@
   
     <article class="article-card">
       <h2 class="article-head">
+        <a href="/2020/05/22/GoConcurrent12-ChangePMaxNum/">Go并发编程（十二）修改P的最大数量</a>
+      </h2>
+      <p class="article-date">2020年5月22日</p>
+      
+        
+  <a href="/tags#Go" >
+    <span class="tag-code">Go</span>
+  </a>
+
+      
+      <div class="article-summary">
+        
+          
+在Go线程实现模型中，P起到了承上启下的作用，P的最大数量的变更就意味着要改变G运行的上下文环境，这种变更也直接影响着G程序的并发性能。本章来说一下其中的流程。
+
+修改P的最大数量在默认情况下，P的最大数量等于正在运行当前Go程序的机器的CPU核心的数量。一台计算机CPU核心的数量，说明了 ...
+        
+      </div>
+      <a class="more" href="/2020/05/22/GoConcurrent12-ChangePMaxNum/">Read more</a>
+    </article>
+  
+    <article class="article-card">
+      <h2 class="article-head">
         <a href="/2020/05/18/GoConcurrent11-Schedt/">Go并发编程（十一）调度器</a>
       </h2>
       <p class="article-date">2020年5月18日</p>
@@ -384,33 +407,6 @@ socket的基本特性大多数操作系统都包含了socket接口的实现，�
         
       </div>
       <a class="more" href="/2020/04/18/GoConcurrent3-SyncFirst/">Read more</a>
-    </article>
-  
-    <article class="article-card">
-      <h2 class="article-head">
-        <a href="/2020/04/17/GoConcurrent2-MultiProgress/">Go并发编程（二）多进程编程</a>
-      </h2>
-      <p class="article-date">2020年4月17日</p>
-      
-        
-  <a href="/tags#Go" >
-    <span class="tag-code">Go</span>
-  </a>
-
-  <a href="/tags#并发编程" >
-    <span class="tag-code">并发编程</span>
-  </a>
-
-      
-      <div class="article-summary">
-        
-          
-在并发编程基础那篇文章中我们提到，多进程编程也是并发编程的一种，那本文主要学习一下什么是多进程编程，以及进程相关的基本概念。
-
-进程基础概念进程的定义进程是基于Unix及其衍生操作系统的根本，因为所有代码都是在进程中执行的。通常，把一个程序的执行称为一个进程。反过来讲，进程用于描述程序的执 ...
-        
-      </div>
-      <a class="more" href="/2020/04/17/GoConcurrent2-MultiProgress/">Read more</a>
     </article>
   
 
