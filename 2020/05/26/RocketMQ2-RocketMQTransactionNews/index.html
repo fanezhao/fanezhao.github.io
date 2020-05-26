@@ -181,7 +181,7 @@
 <h4 id="Half-Message-半消息"><a href="#Half-Message-半消息" class="headerlink" title="Half Message(半消息)"></a>Half Message(半消息)</h4><p><strong>是指暂不能被Consumer消费的消息</strong>。Producer 已经把消息成功发送到了 Broker 端，但此消息被标记为<code>暂不能投递</code>状态，处于该种状态下的消息称为半消息。需要 Producer对消息的<code>二次确认</code>后，Consumer才能去消费它。</p>
 <h4 id="消息回查"><a href="#消息回查" class="headerlink" title="消息回查"></a>消息回查</h4><p>由于网络闪段，生产者应用重启等原因。导致 Producer 端一直没有对 <strong>Half Message(半消息)</strong> 进行 <strong>二次确认</strong>。这是Brock服务器会定时扫描<code>长期处于半消息的消息</code>，会主动询问 Producer端 该消息的最终状态(<strong>Commit或者Rollback</strong>),该消息即为 <strong>消息回查</strong>。</p>
 <h3 id="分布式事务交互流程"><a href="#分布式事务交互流程" class="headerlink" title="分布式事务交互流程"></a>分布式事务交互流程</h3><p>理解这张阿里官方的图，就能理解RocketMQ分布式事务的原理了。</p>
-<img src="http://cdn.zmoyi.com/static/images/rmq-transaction.jpg">
+<img src="http://cdn.zmoyi.com/static/images/rmq分布式事务原理.jpg">
 
 <p>流程如下：</p>
 <ul>
