@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html>
+  <head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0" name="viewport">
+  <meta name="description" content="本博客于 2020 年建站，记录了我在工作过程中学到的技术、运营及产品等知识，并以原创文章的形式分享给大家。未来仍然将坚持不懈的分享技术知识、工作经历等原创内容。 希望看到本博客的前辈多指点扶正、同行们能一起共同学习与进步、正在学习的小伙伴能通过本博客学到对自己有用的知识。">
+  <meta name="keyword" content="ZMOYI, 原创博客, Java, Golang, Linux, 全栈, 后端开发, 前端开发">
+  
+    <link rel="shortcut icon" type="image/ico" href="http://cdn.zmoyi.com/static/images/ico.png"/>
+  
+  <title>
+    
+      RocketMQ1-RocketMQ入门 | Fane&#39;Blog
+    
+  </title>
+  <link href="//cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css" rel="stylesheet">
+  <link href="//cdnjs.cloudflare.com/ajax/libs/nprogress/0.2.0/nprogress.min.css" rel="stylesheet">
+  <link href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/tomorrow.min.css" rel="stylesheet">
+  
+<link rel="stylesheet" href="/css/style.css">
+
+  
+  
+    
+<link rel="stylesheet" href="https://unpkg.com/gitalk/dist/gitalk.css">
+
+  
+  <script src="//cdnjs.cloudflare.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+  <script src="//cdnjs.cloudflare.com/ajax/libs/geopattern/1.2.3/js/geopattern.min.js"></script>
+  <script src="//cdnjs.cloudflare.com/ajax/libs/nprogress/0.2.0/nprogress.min.js"></script>
+  
+    
+<script src="/js/qrious.js"></script>
+
+  
+  
+  
+    
+<script src="https://unpkg.com/gitalk/dist/gitalk.min.js"></script>
+
+  
+  
+  
+    <!-- MathJax support START -->
+    <script type="text/x-mathjax-config">
+      MathJax.Hub.Config({
+        tex2jax: {
+          inlineMath: [ ['$','$'], ["\\(","\\)"]  ],
+          processEscapes: true,
+          skipTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
+        }
+      });
+    </script>
+
+    <script type="text/x-mathjax-config">
+      MathJax.Hub.Queue(function() {
+        var all = MathJax.Hub.getAllJax(), i;
+        for (i=0; i < all.length; i += 1) {
+          all[i].SourceElement().parentNode.className += ' has-jax';
+        }
+      });
+    </script>
+    <script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <!-- MathJax support END -->
+  
+
+
+  
+<meta name="generator" content="Hexo 4.2.0"></head>
+<div class="wechat-share">
+  <img src="http://cdn.zmoyi.com/static/images/logo.png" />
+</div>
+
+  <body>
+    <header class="header fixed-header">
+  <div class="header-container">
+    <a class="home-link" href="/">
+      <div class="logo"></div>
+      <span>Fane'Blog</span>
+    </a>
+    <ul class="right-list">
+      
+        <li class="list-item">
+          
+            <a href="/" class="item-link">Home</a>
+          
+        </li>
+      
+        <li class="list-item">
+          
+            <a href="/tags/" class="item-link">Tags</a>
+          
+        </li>
+      
+        <li class="list-item">
+          
+            <a href="/archives/" class="item-link">Archives</a>
+          
+        </li>
+      
+        <li class="list-item">
+          
+            <a href="/project/" class="item-link">Projects</a>
+          
+        </li>
+      
+        <li class="list-item">
+          
+            <a href="/about/" class="item-link">About</a>
+          
+        </li>
+      
+    </ul>
+    <div class="menu">
+      <span class="icon-bar"></span>
+      <span class="icon-bar"></span>
+      <span class="icon-bar"></span>
+    </div>
+    <div class="menu-mask">
+      <ul class="menu-list">
+        
+          <li class="menu-item">
+            
+              <a href="/" class="menu-link">Home</a>
+            
+          </li>
+        
+          <li class="menu-item">
+            
+              <a href="/tags/" class="menu-link">Tags</a>
+            
+          </li>
+        
+          <li class="menu-item">
+            
+              <a href="/archives/" class="menu-link">Archives</a>
+            
+          </li>
+        
+          <li class="menu-item">
+            
+              <a href="/project/" class="menu-link">Projects</a>
+            
+          </li>
+        
+          <li class="menu-item">
+            
+              <a href="/about/" class="menu-link">About</a>
+            
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+</header>
+
+    <div id="article-banner">
+  <h2>RocketMQ1-RocketMQ入门</h2>
+  <p class="post-date">2020-05-25</p>
+  <div class="arrow-down">
+    <a href="javascript:;"></a>
+  </div>
+</div>
+<main class="app-body flex-box">
+  <!-- Article START -->
+  <article class="post-article">
+    <section class="markdown-content"><h2 id="什么是消息队列？"><a href="#什么是消息队列？" class="headerlink" title="什么是消息队列？"></a>什么是消息队列？</h2><p>简单来说，消息队列就是基础数据结构中“先进先出”的一种数据结构。现在互联网“微服务”架构的兴起，原有大型集中式的IT服务因为各种弊端，通常被拆分成多个细粒度的多个“微服务”，这些微服务可以在一个局域网内，也可能跨机房部署。一方面对服务之间松耦合的要求越来越高，另一方面，服务之间的联系却越来越紧密，对通信的质量也越来越高。分布式消息队列可以提供应用解耦、流量削峰、消息分发等功能，已经成为大型互联网服务架构里标配的中间件。</p>
+<h2 id="RocketMQ是什么？"><a href="#RocketMQ是什么？" class="headerlink" title="RocketMQ是什么？"></a>RocketMQ是什么？</h2><img src="http://cdn.zmoyi.com/static/images/mq.png">
+
+<p>上图是一个典型的消息中间件收发消息的模型，RocketMQ也是这样的设计，简单说来，RocketMQ具有以下特点：</p>
+<ul>
+<li><p>是一个队列模型的消息中间件，具有高性能、高可靠、高实时、分布式特点。</p>
+</li>
+<li><p><code>Producer</code>、<code>Consumer</code>、队列都可以分布式。</p>
+</li>
+<li><p>Producer向一些队列轮流发送消息，队列集合称为<code>Topic</code>，<code>Consumer</code>如果做广播消费，则一个<code>Consumer</code>实例消费这个Topic对应的所有队列，如果做集群消费，则多个<code>Consumer</code>实例平均消费这个topic对应的队列集合。</p>
+</li>
+<li><p>能够保证严格的消息顺序。</p>
+</li>
+<li><p>提供丰富的消息拉取模式。</p>
+</li>
+<li><p>高效的订阅者水平扩展能力。</p>
+</li>
+<li><p>实时的消息订阅机制。</p>
+</li>
+<li><p>亿级消息堆积能力。</p>
+</li>
+<li><p>较少的依赖。</p>
+</li>
+</ul>
+<h3 id="RocketMQ实现架构"><a href="#RocketMQ实现架构" class="headerlink" title="RocketMQ实现架构"></a>RocketMQ实现架构</h3><img src="http://cdn.zmoyi.com/static/images/rmq-basic.png">
+
+<p>Rocket的架构由四个部分组成：<code>NameServer</code>，<code>Broker</code>，<code>Producer</code>和<code>Consumer</code>。它们中的每一个都可以水平扩展，而没有单个故障点。</p>
+<ul>
+<li><p><strong>NameServer</strong>：<code>NameServer</code>提供轻量级的服务发现和路由。每个<code>NameServer</code>记录完整的路由信息，提供相应的读写服务，并支持快速的存储扩展。</p>
+</li>
+<li><p><strong>Broker</strong>：<code>Broker</code>通过提供轻量级的<code>TOPIC</code>和<code>QUEUE</code>机制来提供消息存储。它们支持<code>Push</code>和<code>Pull</code>模型，包含容错机制（2个副本或3个副本），并提供强大的峰值填充功能和按原始时间顺序累积数千亿条消息的能力。此外，<code>Broker</code>提供灾难恢复，丰富的指标统计信息和警报机制，而这是传统消息传递系统所没有的。</p>
+</li>
+<li><p><strong>Producer</strong>：<code>Producer</code>支持分布式部署。分布式<code>Producer</code>通过多种负载平衡模式将消息发送到<code>Broker</code>集群。发送过程支持快速失败并且延迟低。</p>
+</li>
+<li><p><strong>Consumer</strong>：<code>Consumer</code>也支持<code>Push</code>和<code>Pull</code>模型中和分布式部署。它还支持集群使用和消息广播。它提供了实时消息订阅机制，可以满足大多数消费者的需求。</p>
+</li>
+</ul>
+<p>了解了上面四种角色之后，再介绍一下<code>Topic</code>和<code>Message Queue</code>。一般来说，每个业务都有不同类型的消息要投递，就可以把这些不同类型的消息以不同的<code>Topic</code>做区分，所以发送和接收消息之前，先创建<code>Topic</code>。</p>
+<p>有了<code>Topic</code>之后，还要解决性能问题。如果一个<code>Topic</code>要发送和接收的数据量非常大，需要能支持增加并行处理的机器来提高处理速度，这时候一个<code>Topic</code>可以根据需要设置一个或多个<code>Message Queue</code>，<code>Message Queue</code>类型分区或<code>Partition</code>。<code>Topic</code>有了多个<code>Message Queue</code>之后，消息就可以并行的向各个<code>Message Queue</code>发送，消费者也可以并行地从多个<code>Message Queue</code>读取消息并消费。</p>
+<h3 id="RocketMQ-物理部署结构"><a href="#RocketMQ-物理部署结构" class="headerlink" title="RocketMQ 物理部署结构"></a>RocketMQ 物理部署结构</h3><img src="http://cdn.zmoyi.com/static/images/rocketmq物理部署.png">
+
+<p>如上图所示， RocketMQ的部署结构有以下特点：</p>
+<ul>
+<li><p><code>NameServer</code>是一个几乎无状态节点，可集群部署，节点之间无任何信息同步。</p>
+</li>
+<li><p><code>Broker</code>部署相对复杂，<code>Broker</code>分为Master与Slave，一个Master可以对应多个Slave，但是一个Slave只能对应一个Master，Master与Slave的对应关系通过指定相同的BrokerName，不同的BrokerId来定义，BrokerId为0表示Master，非0表示Slave。<strong>Master也可以部署多个。每个Broker与Name Server集群中的所有节点建立长连接，定时注册Topic信息到所有Name Server</strong>。</p>
+</li>
+<li><p><code>Producer</code>与<code>NameServer</code>集群中的其中一个节点（随机选择）建立长连接，定期从<code>NameServer</code>取<code>Topic</code>路由信息，并向提供<code>Topic</code>服务的Master建立长连接，且定时向Master发送心跳。<code>Producer</code>完全无状态，可集群部署。</p>
+</li>
+<li><p><code>Consumer</code>与<code>NameServer</code>集群中的其中一个节点（随机选择）建立长连接，定期从<code>NameServer</code>取<code>Topic</code>路由信息，并向提供<code>Topic</code>服务的Master、Slave建立长连接，且定时向Master、Slave发送心跳。<code>Consumer</code>既可以从Master订阅消息，也可以从Slave订阅消息，订阅规则由Broker配置决定。</p>
+</li>
+</ul>
+<h3 id="如何存储队列位置信息"><a href="#如何存储队列位置信息" class="headerlink" title="如何存储队列位置信息"></a>如何存储队列位置信息</h3><p>实际运行中的系统，难免会遇到重新消费某条消息、跳过一段时间内的消息等情况。这些异常情况的处理，都和<code>Offset</code>有关。RocketMQ中，一种类型的消息会放到一个<code>Topic</code>，为了能够并行，一般一个<code>Topic</code>会有多个<code>Message Queue</code>（也可以设置成一个），<code>Offset</code>是指某个<code>Topic</code>下的一条消息在某个<code>Message Queue</code>里的位置，通过<code>Offset</code>可以定位到这条消息，或者指示<code>Consumer</code>从这条消息开始向后继续处理。</p>
+<h2 id="NameServer的功能"><a href="#NameServer的功能" class="headerlink" title="NameServer的功能"></a>NameServer的功能</h2><p>对于一个消息队列集群来说，系统由很多台机器组成，每个机器的角色、IP地址都不相同，而且这些信息是变动的。这种情况下，如果一个新的<code>Producer</code>或<code>Consumer</code>加入，怎么配置连接信息呢？<code>NameServer</code>的存在主要是解决这类问题的。</p>
+<p><code>NameServer</code>是整个消息队列中的状态服务器，集群的各个组件通过它来了解全局信息。同时各个角色的机器都要定期向<code>NameServer</code>上报自己状态，超时不上报的话，<code>NameServer</code>就认为这个机器不可用了，其它组件会将这个机器从可用列表移除。</p>
+<p><code>NameServer</code>可以部署多个，相互之间独立，其它角色同时向多个<code>NameServer</code>机器上报状态信息，从而达到热备份的目的。<code>NameServer</code>本身是无状态的，也就是说<code>NameServer</code>中的<code>Broder</code>、<code>Topic</code>等状态信息不会持久存储，都是由各个角色定时上报并存储到内存中（<code>NameServer</code>支持配置参数的持久化，不过一般用不到）。</p>
+<h3 id="存储结构"><a href="#存储结构" class="headerlink" title="存储结构"></a>存储结构</h3><ul>
+<li><p>1、topicQueueTable</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">private</span> <span class="keyword">final</span> HashMap&lt;String<span class="comment">/* topic */</span>, List&lt;QueueData&gt;&gt; topicQueueTable;</span><br></pre></td></tr></table></figure>
+
+<p>这个结构的<code>Key</code>是<code>Topic</code>的名称，它存储了所有<code>Topic</code>的属性信息。Value是一个QueueData队列，队列的长度等于这个<code>Topic</code>数据存储的Master Broker的个数，QueueData里存储着Broker的名称、读写queue的数量、同步标识等。</p>
+</li>
+<li><p>2、brokerAddrTable</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">private</span> <span class="keyword">final</span> HashMap&lt;String<span class="comment">/* brokerName */</span>, BrokerData&gt; brokerAddrTable;</span><br></pre></td></tr></table></figure>
+
+<p>这个是以BrokerName为索引，相同名称的Broker可能存在多台机器，一个Master和Slave。这个结构存储着一个BrokerName对应的属性信息，包括所属的Cluster名称，一个Master Broker和多个Slave Broker的地址信息。</p>
+</li>
+<li><p>3、clusterAddrTable</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">private</span> <span class="keyword">final</span> HashMap&lt;String<span class="comment">/* clusterName */</span>, Set&lt;String<span class="comment">/* brokerName */</span>&gt;&gt; clusterAddrTable;</span><br></pre></td></tr></table></figure>
+
+<p>clusterAddrTable 存储的集群中的Cluster的信息，结果很简单，就是一个Cluster对应一个由BrokerName的组合。</p>
+</li>
+<li><p>4、brokerLiveTable</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">private</span> <span class="keyword">final</span> HashMap&lt;String<span class="comment">/* brokerAddr */</span>, BrokerLiveInfo&gt; brokerLiveTable;</span><br></pre></td></tr></table></figure>
+
+<p>这个结构和brokerAddrTable有关系，但是内容完全不同，它的Key是BrokerAddr。也就是对应着一台机器，BrokerAddrTable中的Key是BrokerName，多个机器的BrokerName可以相同。</p>
+<p>brokerLiveTable存储的内容是这台<code>Broker</code>机器的实时状态，包括上次更新状态的时间戳，<code>NameServer</code>会定期检查这个时间戳，超时（2分钟）没有更新就认为这个<code>Broker</code>无效，将其从Broker列表中删除。</p>
+</li>
+<li><p>5、filterServerTable</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">private</span> <span class="keyword">final</span> HashMap&lt;String<span class="comment">/* brokerAddr */</span>, List&lt;String&gt;<span class="comment">/* Filter Server */</span>&gt; filterServerTable;</span><br></pre></td></tr></table></figure>
+
+<p>Filter Server是过滤服务器，是RocketMQ的一种服务端过滤方式，一个Broker可以有一个或多个Filter Server。这个结构的Key是<code>Broker</code>的地址，Value是和这个<code>Broker</code>关联的多个Filter Server的地址。</p>
+</li>
+</ul>
+<h3 id="状态维护"><a href="#状态维护" class="headerlink" title="状态维护"></a>状态维护</h3><p>RocketMQ架构中其它角色会向<code>NameServer</code>上报状态，<code>NameServer</code>的主要逻辑在<code>DefaultRequestProcessor</code>类中，根据上报消息的请求码，更新存储的对应信息。</p>
+<p>此外，连接断开的事件也会触发状态更新，具体逻辑在<code>org.apache.rocketmq.namesrv.routeinfo.BrokerHousekeepingService</code>中，代码清单如下：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">@Override</span></span><br><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">onChannelClose</span><span class="params">(String remoteAddr, Channel channel)</span> </span>&#123;</span><br><span class="line">    <span class="keyword">this</span>.namesrvController.getRouteInfoManager().onChannelDestroy(remoteAddr, channel);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="meta">@Override</span></span><br><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">onChannelException</span><span class="params">(String remoteAddr, Channel channel)</span> </span>&#123;</span><br><span class="line">    <span class="keyword">this</span>.namesrvController.getRouteInfoManager().onChannelDestroy(remoteAddr, channel);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="meta">@Override</span></span><br><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">onChannelIdle</span><span class="params">(String remoteAddr, Channel channel)</span> </span>&#123;</span><br><span class="line">    <span class="keyword">this</span>.namesrvController.getRouteInfoManager().onChannelDestroy(remoteAddr, channel);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>当<code>NameServer</code>和<code>Broker</code>的长连接断掉之后，<code>onChannelDestroy</code>函数会被调用，把这个Broker的信息清理出去。</p>
+<p><code>NameServer</code>还有定时检查时间时间戳的逻辑，<code>Broker</code>向<code>NameServer</code>发送的心跳会更新时间戳，当<code>NameServer</code>检查时间戳长时间没更新后，便会触发清理逻辑。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">this</span>.scheduledExecutorService.scheduleAtFixedRate(<span class="keyword">new</span> Runnable() &#123;</span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">run</span><span class="params">()</span> </span>&#123;</span><br><span class="line">        NamesrvController.<span class="keyword">this</span>.routeInfoManager.scanNotActiveBroker();</span><br><span class="line">    &#125;</span><br><span class="line">&#125;, <span class="number">5</span>, <span class="number">10</span>, TimeUnit.SECONDS);</span><br></pre></td></tr></table></figure>
+
+<p>每10s检查一次，时间戳超时2mins则认为<code>Broker</code>已失效。</p>
+<h3 id="为何不用ZooKeeper"><a href="#为何不用ZooKeeper" class="headerlink" title="为何不用ZooKeeper?"></a>为何不用ZooKeeper?</h3><p>ZK是Apache的一个开源软件，为分布式应用程序提供协调服务。那么为什么RocketMQ要自己造轮子呢？</p>
+<p>因为ZK的功能很强大，包括自动Master选举等，RocketMQ的架构设计决定了它不需要进行Master选举，用不到这些复杂的功能，只需要一个轻量级的元数据服务器就足够了。</p>
+<p>而且中间件对稳定性要求很高，RocketMQ的NameServer只有很少的代码，容易维护，所以不需要再依赖另一个中间件，从而减少维护成本。</p>
+<h2 id="通信协议"><a href="#通信协议" class="headerlink" title="通信协议"></a>通信协议</h2><p>RocketMQ自己定义了一个通信协议，使得模块间传输的二进制消息和有意义的内容之间互相转换。</p>
+<img src="http://cdn.zmoyi.com/static/images/rmq通信协议.jpg">
+
+<ul>
+<li>第一部份是4个字节整数，值等于第二、三、四部分长度的总和。</li>
+<li>第二部份是4个字节整数，值等于第三部分长度的总和。</li>
+<li>第三部分是通过Json序列化的数据。</li>
+<li>第四部份是通过应用自定义二进制序列化的数据。</li>
+</ul>
+<h2 id="对事务的支持"><a href="#对事务的支持" class="headerlink" title="对事务的支持"></a>对事务的支持</h2><p>RocketMQ的事务消息，是指发送消息事件和其它事件需要同时成功或同时失败。比如银行转账，A银行的某账户需要转1W到B银行的某账户。A银行发送“B银行账户增加1W”这个消息，要和“从A银行账户扣除1W”这个操作同时成功或同时失败。</p>
+<p>RocketMQ采用两阶段提交的方式实现事务消息。<code>TransactionMQProducer</code>处理上面情况的流程是，先发一个“准备从B银行账户增加1W”的消息，发送成功之后做从A银行扣除1W的操作，根据操作结果是否成功，确定之前的“准备从B银行账户增加1W”的消息是做<code>commit</code>还是<code>rollback</code>。具体流程如下：</p>
+<ul>
+<li><p>1、发送方向RocketMQ发送“待确认”消息。</p>
+</li>
+<li><p>2、RocketMQ将收到的“待确认”消息持久化成功之后，向发送方回复消息已经发送成功，此时第一阶段消息发送完成。</p>
+</li>
+<li><p>3、发送方开始执行本地逻辑事件。</p>
+</li>
+<li><p>4、发送方根据本地逻辑事件执行结果向RocketMQ发送二次确认（<code>commit</code>或是<code>rollback</code>）消息，RocketMQ收到<code>commit</code>状态则将第一阶段消息标记为可投递，订阅方将能收到该消息；收到<code>rollback</code>状态则删除第一阶段的消息，则订阅方不会收到该消息。</p>
+</li>
+<li><p>5、如果出现异常情况，步骤4提交的二次确认最终未到达RocketMQ，服务器在固定时间段后将对“待确认”消息发起回查请求。</p>
+</li>
+<li><p>6、发送方收到消息回查请求后（如果发送第一阶段消息的<code>Producer</code>不能工作，回查请求被发送到和<code>Producer</code>在同一个Group里的其他<code>Producer</code>），通过检查对应消息的本地事件执行结果返回<code>commit</code>或<code>rollback</code>状态。</p>
+</li>
+<li><p>7、RocketMQ收到回查请求后，按照步骤4的逻辑处理。</p>
+</li>
+</ul>
+<h2 id="参考链接"><a href="#参考链接" class="headerlink" title="参考链接"></a>参考链接</h2><p><a href="http://rocketmq.apache.org/docs/rmq-arc/" target="_blank" rel="noopener">RocketMQ官网</a></p>
+<p><a href="http://jm.taobao.org/2017/01/12/rocketmq-quick-start-in-10-minutes/" target="_blank" rel="noopener">十分钟入门RocketMQ</a></p>
+</section>
+    <!-- Tags START -->
+    
+      <div class="tags">
+        <span>Tags:</span>
+        
+  <a href="/tags#Java" >
+    <span class="tag-code">Java</span>
+  </a>
+
+  <a href="/tags#消息队列" >
+    <span class="tag-code">消息队列</span>
+  </a>
+
+      </div>
+    
+    <!-- Tags END -->
+    <!-- NAV START -->
+    
+  <div class="nav-container">
+    <!-- reverse left and right to put prev and next in a more logic postition -->
+    
+      <a class="nav-left" href="/2020/05/22/GoConcurrent13-OtherDetails/">
+        <span class="nav-arrow">← </span>
+        
+          Go并发编程（十三）调度器的其他细节
+        
+      </a>
+    
+    
+  </div>
+
+    <!-- NAV END -->
+    <!-- 打赏 START -->
+    
+      <div class="money-like">
+        <div class="reward-btn">
+          赏
+          <span class="money-code">
+            <span class="alipay-code">
+              <div class="code-image"></div>
+              <b>使用支付宝打赏</b>
+            </span>
+            <span class="wechat-code">
+              <div class="code-image"></div>
+              <b>使用微信打赏</b>
+            </span>
+          </span>
+        </div>
+        <p class="notice">若你觉得我的文章对你有帮助，欢迎点击上方按钮对我打赏</p>
+      </div>
+    
+    <!-- 打赏 END -->
+    <!-- 二维码 START -->
+    
+      <div class="qrcode">
+        <canvas id="share-qrcode"></canvas>
+        <p class="notice">扫描二维码，分享此文章</p>
+      </div>
+    
+    <!-- 二维码 END -->
+    
+      <!-- Gitalk START -->
+      <div id="gitalk-container"></div>
+      <!-- Gitalk END -->
+    
+  </article>
+  <!-- Article END -->
+  <!-- Catalog START -->
+  
+    <aside class="catalog-container">
+  <div class="toc-main">
+    <strong class="toc-title">目录</strong>
+    
+      <ol class="toc-nav"><li class="toc-nav-item toc-nav-level-2"><a class="toc-nav-link" href="#什么是消息队列？"><span class="toc-nav-text">什么是消息队列？</span></a></li><li class="toc-nav-item toc-nav-level-2"><a class="toc-nav-link" href="#RocketMQ是什么？"><span class="toc-nav-text">RocketMQ是什么？</span></a><ol class="toc-nav-child"><li class="toc-nav-item toc-nav-level-3"><a class="toc-nav-link" href="#RocketMQ实现架构"><span class="toc-nav-text">RocketMQ实现架构</span></a></li><li class="toc-nav-item toc-nav-level-3"><a class="toc-nav-link" href="#RocketMQ-物理部署结构"><span class="toc-nav-text">RocketMQ 物理部署结构</span></a></li><li class="toc-nav-item toc-nav-level-3"><a class="toc-nav-link" href="#如何存储队列位置信息"><span class="toc-nav-text">如何存储队列位置信息</span></a></li></ol></li><li class="toc-nav-item toc-nav-level-2"><a class="toc-nav-link" href="#NameServer的功能"><span class="toc-nav-text">NameServer的功能</span></a><ol class="toc-nav-child"><li class="toc-nav-item toc-nav-level-3"><a class="toc-nav-link" href="#存储结构"><span class="toc-nav-text">存储结构</span></a></li><li class="toc-nav-item toc-nav-level-3"><a class="toc-nav-link" href="#状态维护"><span class="toc-nav-text">状态维护</span></a></li><li class="toc-nav-item toc-nav-level-3"><a class="toc-nav-link" href="#为何不用ZooKeeper"><span class="toc-nav-text">为何不用ZooKeeper?</span></a></li></ol></li><li class="toc-nav-item toc-nav-level-2"><a class="toc-nav-link" href="#通信协议"><span class="toc-nav-text">通信协议</span></a></li><li class="toc-nav-item toc-nav-level-2"><a class="toc-nav-link" href="#对事务的支持"><span class="toc-nav-text">对事务的支持</span></a></li><li class="toc-nav-item toc-nav-level-2"><a class="toc-nav-link" href="#参考链接"><span class="toc-nav-text">参考链接</span></a></li></ol>
+    
+  </div>
+</aside>
+  
+  <!-- Catalog END -->
+</main>
+
+<script>
+  (function () {
+    var url = 'http://zmoyi.com/2020/05/25/RocketMQ1-RocketMQIntroduction/';
+    var banner = ''
+    if (banner !== '' && banner !== 'undefined' && banner !== 'null') {
+      $('#article-banner').css({
+        'background-image': 'url(' + banner + ')'
+      })
+    } else {
+      $('#article-banner').geopattern(url)
+    }
+    $('.header').removeClass('fixed-header')
+
+    // error image
+    $(".markdown-content img").on('error', function() {
+      $(this).attr('src', 'http://file.muyutech.com/error-img.png')
+      $(this).css({
+        'cursor': 'default'
+      })
+    })
+
+    // zoom image
+    $(".markdown-content img").on('click', function() {
+      var src = $(this).attr('src')
+      if (src !== 'http://file.muyutech.com/error-img.png') {
+        var imageW = $(this).width()
+        var imageH = $(this).height()
+
+        var zoom = ($(window).width() * 0.95 / imageW).toFixed(2)
+        zoom = zoom < 1 ? 1 : zoom
+        zoom = zoom > 2 ? 2 : zoom
+        var transY = (($(window).height() - imageH) / 2).toFixed(2)
+
+        $('body').append('<div class="image-view-wrap"><div class="image-view-inner"><img src="'+ src +'" /></div></div>')
+        $('.image-view-wrap').addClass('wrap-active')
+        $('.image-view-wrap img').css({
+          'width': `${imageW}`,
+          'transform': `translate3d(0, ${transY}px, 0) scale3d(${zoom}, ${zoom}, 1)`
+        })
+        $('html').css('overflow', 'hidden')
+
+        $('.image-view-wrap').on('click', function() {
+          $(this).remove()
+          $('html').attr('style', '')
+        })
+      }
+    })
+  })();
+</script>
+
+
+  <script>
+    var qr = new QRious({
+      element: document.getElementById('share-qrcode'),
+      value: document.location.href
+    });
+  </script>
+
+
+
+
+
+  <script type="text/javascript">
+    var gitalk = new Gitalk({
+      clientID: '595f268d984e0123456f',
+      clientSecret: 'e4c1799bc7a82448653f758927992c6217beb7cb',
+      id: window.location.pathname,
+      repo: 'fanezhao.github.io',
+      owner: 'fanezhao',
+      admin: 'fanezhao'
+    })
+    gitalk.render('gitalk-container')
+  </script>
+
+
+
+
+    <div class="scroll-top">
+  <span class="arrow-icon"></span>
+</div>
+    <footer class="app-footer">
+  <p class="copyright">
+    &copy;2020 <a href="https://github.com/fanezhao" target="_blank" rel="noopener">Fane</a>
+    | PV: <span id="busuanzi_value_site_pv"></span>
+    | UV: <span id="busuanzi_value_site_uv"></span>
+    | PPV: <span id="busuanzi_value_page_pv"></span>
+    <br>
+  </p>
+  <div style="width:350px;margin:0 auto; padding:0px 0; overflow: hidden;">
+    <a href="http://www.beian.miit.gov.cn/" target="_blank" rel="noopener" style="display:inline-block;text-decoration: none; height:20px;line-height:20px;float: left;">
+        <p style="float:left;height:20px;line-height:20px;margin: 0px 0px 0px 5px; color:#939393;">浙ICP备20012854号</p >
+    </a >
+    <a href="http://www.beian.gov.cn/portal/registerSystemInfo?recordcode=33011002014629" target="_blank" rel="noopener" style="display:inline-block; text-decoration: none; height:20px; line-height:20px; float:right;">
+        <img src="http://cdn.zmoyi.com/static/images/%E5%A4%87%E6%A1%88%E5%9B%BE%E6%A0%87.png" style="float:left;" alt="">
+        <p style="float:left;height:20px;line-height:20px;margin: 0px 0px 0px 5px; color:#939393;">浙公网安备 33011002014629号</p >
+    </a >
+  </div>
+</footer>
+
+<script>
+  function async(u, c) {
+    var d = document, t = 'script',
+      o = d.createElement(t),
+      s = d.getElementsByTagName(t)[0];
+    o.src = u;
+    if (c) { o.addEventListener('load', function (e) { c(null, e); }, false); }
+    s.parentNode.insertBefore(o, s);
+  }
+</script>
+<script>
+  async("//cdnjs.cloudflare.com/ajax/libs/fastclick/1.0.6/fastclick.min.js", function(){
+    FastClick.attach(document.body);
+  })
+</script>
+
+<script>
+  var hasLine = 'true';
+  async("//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/highlight.min.js", function(){
+    $('figure pre').each(function(i, block) {
+      var figure = $(this).parents('figure');
+      if (hasLine === 'false') {
+        figure.find('.gutter').hide();
+      }
+      var lang = figure.attr('class').split(' ')[1] || 'code';
+      var codeHtml = $(this).html();
+      var codeTag = document.createElement('code');
+      codeTag.className = lang;
+      codeTag.innerHTML = codeHtml;
+      $(this).attr('class', '').empty().html(codeTag);
+      figure.attr('data-lang', lang.toUpperCase());
+      hljs.highlightBlock(block);
+    });
+  })
+</script>
+<!-- Baidu Tongji -->
+
+<script>
+    var _baId = '1da5032819b12da8d4c1fb82c6f21ffa';
+    // Originial
+    var _hmt = _hmt || [];
+    (function() {
+      var hm = document.createElement("script");
+      hm.src = "//hm.baidu.com/hm.js?" + _baId;
+      var s = document.getElementsByTagName("script")[0];
+      s.parentNode.insertBefore(hm, s);
+    })();
+</script>
+
+<!-- busuanzi -->
+<script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+
+<script src="/js/script.js"></script>
+
+  </body>
+</html>
