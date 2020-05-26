@@ -158,15 +158,43 @@
   
     <article class="article-card">
       <h2 class="article-head">
+        <a href="/2020/05/26/RocketMQ2-RocketMQTransactionNews/">RocketMQ2-RocketMQ实现分布式事务</a>
+      </h2>
+      <p class="article-date">2020年5月26日</p>
+      
+        
+  <a href="/tags#消息队列" >
+    <span class="tag-code">消息队列</span>
+  </a>
+
+  <a href="/tags#分布式事务" >
+    <span class="tag-code">分布式事务</span>
+  </a>
+
+      
+      <div class="article-summary">
+        
+          举个分布式事务场景
+ 例子：假设 A 给 B 转 100块钱，同时它们不是同一个服务上。
+目标：就是 A 减100块钱，B 加100块钱。
+
+实际情况可能有四种：
+
+1）就是A账户减100 （成功），B账户加100 （成功） 
+2）就是A账户减100（失败），B账户加100 （失败） 
+3） ...
+        
+      </div>
+      <a class="more" href="/2020/05/26/RocketMQ2-RocketMQTransactionNews/">Read more</a>
+    </article>
+  
+    <article class="article-card">
+      <h2 class="article-head">
         <a href="/2020/05/26/RocketMQ1-RocketMQIntroduction/">RocketMQ1-RocketMQ入门</a>
       </h2>
       <p class="article-date">2020年5月26日</p>
       
         
-  <a href="/tags#Java" >
-    <span class="tag-code">Java</span>
-  </a>
-
   <a href="/tags#消息队列" >
     <span class="tag-code">消息队列</span>
   </a>
@@ -379,30 +407,6 @@ socket的基本特性大多数操作系统都包含了socket接口的实现，�
         
       </div>
       <a class="more" href="/2020/04/24/GoConcurrent6-IPCSocket1/">Read more</a>
-    </article>
-  
-    <article class="article-card">
-      <h2 class="article-head">
-        <a href="/2020/04/22/GoConcurrent5-IPCSignal/">Go并发编程（五）IPC之信号</a>
-      </h2>
-      <p class="article-date">2020年4月22日</p>
-      
-        
-  <a href="/tags#Go" >
-    <span class="tag-code">Go</span>
-  </a>
-
-      
-      <div class="article-summary">
-        
-          
-我在多进程编程那篇博客中讲到Go支持的IPC方法有管道、信号和socket。今天来看下在Go中是如何使用信号的。
-
-什么是信号操作系统信号（signal）是IPC方法中唯一一种异步的通信方法，它的本质是用软件来模拟硬件的中断机制。
-信号是用来通知某个进程有某个事情发生了。例如，在命令行终端 ...
-        
-      </div>
-      <a class="more" href="/2020/04/22/GoConcurrent5-IPCSignal/">Read more</a>
     </article>
   
 
