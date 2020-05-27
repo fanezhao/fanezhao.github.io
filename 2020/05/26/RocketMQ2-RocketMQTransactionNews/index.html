@@ -179,29 +179,34 @@
 <p>那我们来看下RocketMQ是如何来保证事务的一致性的。</p>
 <h2 id="RocketMQ实现分布式事务原理"><a href="#RocketMQ实现分布式事务原理" class="headerlink" title="RocketMQ实现分布式事务原理"></a>RocketMQ实现分布式事务原理</h2><h3 id="基础概念"><a href="#基础概念" class="headerlink" title="基础概念"></a>基础概念</h3><h4 id="最终一致性"><a href="#最终一致性" class="headerlink" title="最终一致性"></a>最终一致性</h4><p><strong>RocketMQ是一种最终一致性的分布式事务</strong>，就是说它保证的是消息最终一致性，而不是像2PC、3PC、TCC那样强一致分布式事务，至于为什么说它是最终一致性事务下面会详细说明。</p>
 <h4 id="Half-Message-半消息"><a href="#Half-Message-半消息" class="headerlink" title="Half Message(半消息)"></a>Half Message(半消息)</h4><p><strong>是指暂不能被Consumer消费的消息</strong>。Producer 已经把消息成功发送到了 Broker 端，但此消息被标记为<code>暂不能投递</code>状态，处于该种状态下的消息称为半消息。需要 Producer对消息的<code>二次确认</code>后，Consumer才能去消费它。</p>
-<h4 id="消息回查"><a href="#消息回查" class="headerlink" title="消息回查"></a>消息回查</h4><p>由于网络闪段，生产者应用重启等原因。导致 Producer 端一直没有对 <strong>Half Message(半消息)</strong> 进行 <strong>二次确认</strong>。这是Brock服务器会定时扫描<code>长期处于半消息的消息</code>，会主动询问 Producer端 该消息的最终状态(<strong>Commit或者Rollback</strong>),该消息即为 <strong>消息回查</strong>。</p>
+<h4 id="消息回查"><a href="#消息回查" class="headerlink" title="消息回查"></a>消息回查</h4><p>由于网络闪段，生产者应用重启等原因。导致 Producer 端一直没有对 <strong>Half Message(半消息)</strong> 进行 <strong>二次确认</strong>。这是Brock服务器会定时扫描<code>长期处于半消息的消息</code>，会主动询问 Producer端该消息的最终状态(<strong>Commit或者Rollback</strong>),该消息即为 <strong>消息回查</strong>。</p>
 <h3 id="分布式事务交互流程"><a href="#分布式事务交互流程" class="headerlink" title="分布式事务交互流程"></a>分布式事务交互流程</h3><p>理解这张阿里官方的图，就能理解RocketMQ分布式事务的原理了。</p>
 <img src="http://cdn.zmoyi.com/static/images/rmq分布式事务原理.jpg">
 
 <p>流程如下：</p>
 <ul>
-<li>1、A服务先发送个Half Message给Brock端，消息中携带 B服务 即将要+100元的信息。 </li>
+<li>1、A服务先发送个Half Message给Broker端，消息中携带“B服务即将要+100元”的信息。 </li>
 <li>2、当A服务知道Half Message发送成功后，那么开始第3步执行本地事务。 </li>
-<li>3、执行本地事务(会有三种情况1、执行成功。2、执行失败。3、网络等原因导致没有响应) 。</li>
-<li>4.1)、如果本地事务成功，那么Product像Brock服务器发送Commit,这样B服务就可以消费该message。</li>
-<li>4.2)、如果本地事务失败，那么Product像Brock服务器发送Rollback,那么就会直接删除上面这条半消息。 </li>
-<li>4.3)、如果因为网络等原因迟迟没有返回失败还是成功，那么会执行RocketMQ的回调接口,来进行事务的回查。</li>
+<li>3、执行本地事务会有三种情况：<ul>
+<li>1、执行成功。</li>
+<li>2、执行失败。</li>
+<li>3、网络等原因导致没有响应)。</li>
 </ul>
-<p>从上面流程可以得知<strong>只有A服务本地事务执行成功 ，B服务才能消费该message</strong>。</p>
+</li>
+<li>4.1)、如果本地事务成功，那么Product像Broker服务器发送Commit，这样B服务就可以消费该消息。</li>
+<li>4.2)、如果本地事务失败，那么Product像Broker服务器发送Rollback，那么就会直接删除上面这条半消息。 </li>
+<li>4.3)、如果因为网络等原因迟迟没有返回失败还是成功，那么会执行RocketMQ的回调接口，来进行事务的回查。</li>
+</ul>
+<p>从上面流程可以得知<strong>只有A服务本地事务执行成功 ，B服务才能消费该消息</strong>。</p>
 <h3 id="思考几个问题？"><a href="#思考几个问题？" class="headerlink" title="思考几个问题？"></a>思考几个问题？</h3><h4 id="1、为什么要先发送Half-Message-半消息-？"><a href="#1、为什么要先发送Half-Message-半消息-？" class="headerlink" title="1、为什么要先发送Half Message(半消息)？"></a>1、为什么要先发送Half Message(半消息)？</h4><p>主要有两个原因：</p>
 <ul>
-<li>1）可以先确认 Brock服务器是否正常 ，如果半消息都发送失败了 那说明Brock挂了。</li>
-<li>2）可以通过半消息来回查事务，如果半消息发送成功后一直没有被二次确认，那么就会回查事务状态。</li>
+<li>1、可以先确认Broker服务器是否正常 ，如果半消息都发送失败了 那说明Broker挂了。</li>
+<li>2、可以通过半消息来回查事务，如果半消息发送成功后一直没有被二次确认，那么就会回查事务状态。</li>
 </ul>
 <h4 id="2、什么情况会回查？"><a href="#2、什么情况会回查？" class="headerlink" title="2、什么情况会回查？"></a>2、什么情况会回查？</h4><p>有两种情况：</p>
 <ul>
-<li>1）执行本地事务的时候，由于突然网络等原因一直没有返回执行事务的结果(commit或者rollback)导致最终返回UNKNOW，那么就会回查。 </li>
-<li>2) 本地事务执行成功后，返回Commit进行消息二次确认的时候的服务挂了，在重启服务那么这个时候在brock端   它还是个Half Message(半消息)，这也会回查。</li>
+<li>1、执行本地事务的时候，由于突然网络等原因一直没有返回执行事务的结果(commit或者rollback)导致最终返回UNKNOW，那么就会回查。 </li>
+<li>2、本地事务执行成功后，返回Commit进行消息二次确认的时候的服务挂了，在重启服务。那么这个时候在Broker端，它还是个Half Message(半消息)，这也会回查。</li>
 </ul>
 <p><strong>特别注意</strong>: 如果回查，那么<strong>一定要先查看当前事务的执行情况，再看是否需要重新执行本地事务。</strong></p>
 <p>想象下如果出现第二种情况而引起的回查，如果不先查看当前事务的执行情况，而是直接执行事务，那么就相当于成功执行了两个本地事务。</p>
@@ -211,8 +216,7 @@
 </blockquote>
 <p><strong>因为</strong>：如果A服务本地事务都失败了，那B服务永远不会执行任何操作，因为消息压根就不会传到B服务。</p>
 <p>那么 <strong>A账户减100 （成功），B账户加100 （失败）</strong> 会不会可能存在的？</p>
-<p><strong>答案是会的</strong></p>
-<p>因为A服务只负责当我消息执行成功了，保证消息能够送达到B,至于B服务接到消息后最终执行结果A并不管。</p>
+<p><strong>答案是会的</strong>，因为A服务只负责自己的事务，当业务执行成功了，保证消息能够送达到B，至于B服务接到消息后最终执行结果A并不管。</p>
 <p><strong>那B服务失败怎么办？</strong></p>
 <p>如果B最终执行失败，几乎可以断定就是代码有问题所以才引起的异常，因为消费端RocketMQ有重试机制，如果不是代码问题一般重试几次就能成功。</p>
 <p>如果是代码的原因引起多次重试失败后，也没有关系，将该异常记录下来，由<code>人工处理</code>，人工兜底处理后，就可以让事务达到最终的一致性。</p>
@@ -248,6 +252,13 @@
         
       </a>
     
+    
+      <a class="nav-right" href="/2020/05/27/RocketMQ3-RocketMQMSGDontLost/">
+        
+          RocketMQ3-RocketMQ是如何保证不丢失消息的
+        
+        <span class="nav-arrow"> →</span>
+      </a>
     
   </div>
 

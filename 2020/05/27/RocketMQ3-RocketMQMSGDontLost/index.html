@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html>
+  <head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0" name="viewport">
+  <meta name="description" content="本博客于 2020 年建站，记录了我在工作过程中学到的技术、运营及产品等知识，并以原创文章的形式分享给大家。未来仍然将坚持不懈的分享技术知识、工作经历等原创内容。 希望看到本博客的前辈多指点扶正、同行们能一起共同学习与进步、正在学习的小伙伴能通过本博客学到对自己有用的知识。">
+  <meta name="keyword" content="ZMOYI, 原创博客, Java, Golang, Linux, 全栈, 后端开发, 前端开发">
+  
+    <link rel="shortcut icon" type="image/ico" href="http://cdn.zmoyi.com/static/images/ico.png"/>
+  
+  <title>
+    
+      RocketMQ3-RocketMQ是如何保证不丢失消息的 | Fane&#39;Blog
+    
+  </title>
+  <link href="//cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css" rel="stylesheet">
+  <link href="//cdnjs.cloudflare.com/ajax/libs/nprogress/0.2.0/nprogress.min.css" rel="stylesheet">
+  <link href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/tomorrow.min.css" rel="stylesheet">
+  
+<link rel="stylesheet" href="/css/style.css">
+
+  
+  
+    
+<link rel="stylesheet" href="https://unpkg.com/gitalk/dist/gitalk.css">
+
+  
+  <script src="//cdnjs.cloudflare.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+  <script src="//cdnjs.cloudflare.com/ajax/libs/geopattern/1.2.3/js/geopattern.min.js"></script>
+  <script src="//cdnjs.cloudflare.com/ajax/libs/nprogress/0.2.0/nprogress.min.js"></script>
+  
+    
+<script src="/js/qrious.js"></script>
+
+  
+  
+  
+    
+<script src="https://unpkg.com/gitalk/dist/gitalk.min.js"></script>
+
+  
+  
+  
+    <!-- MathJax support START -->
+    <script type="text/x-mathjax-config">
+      MathJax.Hub.Config({
+        tex2jax: {
+          inlineMath: [ ['$','$'], ["\\(","\\)"]  ],
+          processEscapes: true,
+          skipTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
+        }
+      });
+    </script>
+
+    <script type="text/x-mathjax-config">
+      MathJax.Hub.Queue(function() {
+        var all = MathJax.Hub.getAllJax(), i;
+        for (i=0; i < all.length; i += 1) {
+          all[i].SourceElement().parentNode.className += ' has-jax';
+        }
+      });
+    </script>
+    <script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <!-- MathJax support END -->
+  
+
+
+  
+<meta name="generator" content="Hexo 4.2.0"></head>
+<div class="wechat-share">
+  <img src="http://cdn.zmoyi.com/static/images/logo.png" />
+</div>
+
+  <body>
+    <header class="header fixed-header">
+  <div class="header-container">
+    <a class="home-link" href="/">
+      <div class="logo"></div>
+      <span>Fane'Blog</span>
+    </a>
+    <ul class="right-list">
+      
+        <li class="list-item">
+          
+            <a href="/" class="item-link">Home</a>
+          
+        </li>
+      
+        <li class="list-item">
+          
+            <a href="/tags/" class="item-link">Tags</a>
+          
+        </li>
+      
+        <li class="list-item">
+          
+            <a href="/archives/" class="item-link">Archives</a>
+          
+        </li>
+      
+        <li class="list-item">
+          
+            <a href="/project/" class="item-link">Projects</a>
+          
+        </li>
+      
+        <li class="list-item">
+          
+            <a href="/about/" class="item-link">About</a>
+          
+        </li>
+      
+    </ul>
+    <div class="menu">
+      <span class="icon-bar"></span>
+      <span class="icon-bar"></span>
+      <span class="icon-bar"></span>
+    </div>
+    <div class="menu-mask">
+      <ul class="menu-list">
+        
+          <li class="menu-item">
+            
+              <a href="/" class="menu-link">Home</a>
+            
+          </li>
+        
+          <li class="menu-item">
+            
+              <a href="/tags/" class="menu-link">Tags</a>
+            
+          </li>
+        
+          <li class="menu-item">
+            
+              <a href="/archives/" class="menu-link">Archives</a>
+            
+          </li>
+        
+          <li class="menu-item">
+            
+              <a href="/project/" class="menu-link">Projects</a>
+            
+          </li>
+        
+          <li class="menu-item">
+            
+              <a href="/about/" class="menu-link">About</a>
+            
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+</header>
+
+    <div id="article-banner">
+  <h2>RocketMQ3-RocketMQ是如何保证不丢失消息的</h2>
+  <p class="post-date">2020-05-27</p>
+  <div class="arrow-down">
+    <a href="javascript:;"></a>
+  </div>
+</div>
+<main class="app-body flex-box">
+  <!-- Article START -->
+  <article class="post-article">
+    <section class="markdown-content"><blockquote>
+<p>来聊聊如何保证 RocketMQ 不丢失消息的。</p>
+</blockquote>
+<h2 id="消息的发送流程"><a href="#消息的发送流程" class="headerlink" title="消息的发送流程"></a>消息的发送流程</h2><p>一条消息从生产到被消费，将会经历三个阶段：</p>
+<img src="http://cdn.zmoyi.com/static/images/rmq消息三阶段.jpg">
+
+<ul>
+<li>生产阶段：Producer 新建消息，然后通过网络将消息投递给 MQ Broker。</li>
+<li>存储阶段：消息将会存储在 Broker 端磁盘中。</li>
+<li>消息阶段： Consumer 将会从 Broker 拉取消息。</li>
+</ul>
+<p>以上任一阶段都可能会丢失消息，我们只要找到这三个阶段丢失消息原因，采用合理的办法避免丢失，就可以彻底解决消息丢失的问题。</p>
+<h2 id="一、生产阶段"><a href="#一、生产阶段" class="headerlink" title="一、生产阶段"></a>一、生产阶段</h2><p>生产者（Producer） 通过网络发送消息给 Broker，当 Broker 收到之后，将会返回确认响应信息给 Producer。所以生产者只要接收到返回的确认响应，就代表消息在生产阶段未丢失。</p>
+<p>RocketMQ 发送消息示例代码如下：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line">DefaultMQProducer mqProducer=<span class="keyword">new</span> DefaultMQProducer(<span class="string">"test"</span>);</span><br><span class="line"><span class="comment">// 设置 nameSpace 地址</span></span><br><span class="line">mqProducer.setNamesrvAddr(<span class="string">"namesrvAddr"</span>);</span><br><span class="line">mqProducer.start();</span><br><span class="line">Message msg = <span class="keyword">new</span> Message(<span class="string">"test_topic"</span> <span class="comment">/* Topic */</span>,</span><br><span class="line">        <span class="string">"Hello World"</span>.getBytes(RemotingHelper.DEFAULT_CHARSET) <span class="comment">/* Message body */</span></span><br><span class="line">);</span><br><span class="line"><span class="comment">// 发送消息到一个Broker</span></span><br><span class="line"><span class="keyword">try</span> &#123;</span><br><span class="line">    SendResult sendResult = mqProducer.send(msg);</span><br><span class="line">&#125; <span class="keyword">catch</span> (RemotingException e) &#123;</span><br><span class="line">    e.printStackTrace();</span><br><span class="line">&#125; <span class="keyword">catch</span> (MQBrokerException e) &#123;</span><br><span class="line">    e.printStackTrace();</span><br><span class="line">&#125; <span class="keyword">catch</span> (InterruptedException e) &#123;</span><br><span class="line">    e.printStackTrace();</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p><code>send</code>方法是一个同步操作，只要这个方法不抛出任何异常，就代表消息已经<strong>发送成功</strong>。</p>
+<p>消息发送成功仅代表消息已经到了 Broker 端，Broker 在不同配置下，可能会返回不同响应状态:</p>
+<ul>
+<li>SendStatus.SEND_OK</li>
+<li>SendStatus.FLUSH_DISK_TIMEOUT</li>
+<li>SendStatus.FLUSH_SLAVE_TIMEOUT</li>
+<li>SendStatus.SLAVE_NOT_AVAILABLE</li>
+</ul>
+<p>引用官方状态说明：</p>
+<img src="http://cdn.zmoyi.com/static/images/rmq消息发送结果官方解释.jpeg">
+
+<p>另外 RocketMQ 还提供异步的发送的方式，适合于链路耗时较长，对响应时间较为敏感的业务场景。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br></pre></td><td class="code"><pre><span class="line">DefaultMQProducer mqProducer = <span class="keyword">new</span> DefaultMQProducer(<span class="string">"test"</span>);</span><br><span class="line"><span class="comment">// 设置 nameSpace 地址</span></span><br><span class="line">mqProducer.setNamesrvAddr(<span class="string">"127.0.0.1:9876"</span>);</span><br><span class="line">mqProducer.setRetryTimesWhenSendFailed(<span class="number">5</span>);</span><br><span class="line">mqProducer.start();</span><br><span class="line">Message msg = <span class="keyword">new</span> Message(<span class="string">"test_topic"</span> <span class="comment">/* Topic */</span>,</span><br><span class="line">        <span class="string">"Hello World"</span>.getBytes(RemotingHelper.DEFAULT_CHARSET) <span class="comment">/* Message body */</span></span><br><span class="line">);</span><br><span class="line"></span><br><span class="line"><span class="keyword">try</span> &#123;</span><br><span class="line">    <span class="comment">// 异步发送消息到，主线程不会被阻塞，立刻会返回</span></span><br><span class="line">    mqProducer.send(msg, <span class="keyword">new</span> SendCallback() &#123;</span><br><span class="line">        <span class="meta">@Override</span></span><br><span class="line">        <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">onSuccess</span><span class="params">(SendResult sendResult)</span> </span>&#123;</span><br><span class="line">            <span class="comment">// 消息发送成功，</span></span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="meta">@Override</span></span><br><span class="line">        <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">onException</span><span class="params">(Throwable e)</span> </span>&#123;</span><br><span class="line">            <span class="comment">// 消息发送失败，可以持久化这条数据，后续进行补偿处理</span></span><br><span class="line">        &#125;</span><br><span class="line">    &#125;);</span><br><span class="line">&#125; <span class="keyword">catch</span> (RemotingException e) &#123;</span><br><span class="line">    e.printStackTrace();</span><br><span class="line">&#125; <span class="keyword">catch</span> (InterruptedException e) &#123;</span><br><span class="line">    e.printStackTrace();</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>异步发送消息一定要<strong>注意重写</strong>回调方法，在回调方法中检查发送结果。</p>
+<p>不管是同步还是异步的方式，都会碰到网络问题导致发送失败的情况。针对这种情况，我们可以设置合理的重试次数，当出现网络问题，可以自动重试。设置方式如下：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 同步发送消息重试次数，默认为 2</span></span><br><span class="line">mqProducer.setRetryTimesWhenSendFailed(<span class="number">3</span>);</span><br><span class="line"><span class="comment">// 异步发送消息重试次数，默认为 2</span></span><br><span class="line">mqProducer.setRetryTimesWhenSendAsyncFailed(<span class="number">3</span>);</span><br></pre></td></tr></table></figure>
+
+<h2 id="插播知识点"><a href="#插播知识点" class="headerlink" title="插播知识点"></a>插播知识点</h2><p>在看存储阶段之前，我们先看两个RocketMQ的概念。</p>
+<h3 id="同步刷盘和异步刷盘"><a href="#同步刷盘和异步刷盘" class="headerlink" title="同步刷盘和异步刷盘"></a>同步刷盘和异步刷盘</h3><p>RocketMQ的消息是存储到磁盘上的，这样既能保证断电后恢复，又可以让存储的消息量超出内存的限制。RocketMQ为提高性能，会尽可能保证磁盘的顺序写。消息在通过Producer写入RocketMQ的时候，有两种写磁盘的方式。</p>
+<ul>
+<li>异步刷盘方式：在返回写成功状态时，消息可能只是被写入了内存的PAGECHCHE，写操作的返回快，吞吐量大；当内存里的消息累积到一定程序的时候，统一触发写磁盘动作，快速写入。</li>
+<li>同步刷盘方式：在返回写成功状态时，消息已经被写入磁盘。具体流程是，消息写入内存的PAGECHAHE后，立即通知刷盘线程刷盘，然后等待线程刷盘完成，完成之后唤醒等待的线程，返回消息写成功的状态。</li>
+</ul>
+<p>同步刷盘还是异步刷盘，是通过Broker配置文件里的<code>flushDiskType</code>参数设置的，同步刷盘设置为<code>SYNC_FLUSH</code>，异步刷盘设置为<code>ASYNC_FLUSH</code>（默认）。</p>
+<h3 id="同步复制和异步复制"><a href="#同步复制和异步复制" class="headerlink" title="同步复制和异步复制"></a>同步复制和异步复制</h3><p>如果一个Broker组有Master和Slave，消息需要通过从Master复制到Slave上，有同步和异步两种复制方式。</p>
+<ul>
+<li>异步复制方式是只要Master写成功即可反馈给客户端写成功状态。</li>
+<li>同步复制方式是等Master和Slave均写成功后才反馈给客户端写成功状态。</li>
+</ul>
+<p>这两种复制方式各有优劣：</p>
+<ul>
+<li>在异步复制方式下，系统拥有较低的延迟和较高的吞吐量，但如果Master出了故障，有些数据因为没有被定进Slave，有可能会丢失。</li>
+<li>在同步复制方式下，如果Master出了故障，Slave上有全部的备份数据，容易恢复，但是同步复制会增大数据写入延迟、降低系统吞吐量。</li>
+</ul>
+<p>同步复制和异步复制也是通过Broker配置文件里的<code>brokerRole</code>参数进行设计的，对Master节点来说，同步复制应该设置成<code>SYNC_MASTER</code>，异步复制设置为<code>ASYNC_MASTER</code>（默认）；对于Slave节点来说，无论同步复制还是异步复制，<code>brokerRole</code>参数设置为<code>SLAVE</code>即可。</p>
+<p>实际应用中要结合业务场景，合理设置刷盘方式和主从复制方式，尤其是<code>SYNC_FLUSH</code>方式，由于频繁的触发磁盘写动作，会明显降低性能。通常情况下，应该把Master和Slave配置成<code>ASYNC_FLUSH</code>的刷盘方式，主从之间配置成<code>SYNC_MASTER</code>的复制方式，这样即使有一台机器出现故障，仍然能保证数据不丢。是个不错的选择。</p>
+<h2 id="二、Broker存储阶段"><a href="#二、Broker存储阶段" class="headerlink" title="二、Broker存储阶段"></a>二、Broker存储阶段</h2><p>默认情况下，消息只要到了 Broker 端，将会优先保存到内存中，然后立刻返回确认响应给生产者。随后 Broker 定期批量的将一组消息从内存异步刷入磁盘。</p>
+<p>这种方式减少 I/O 次数，可以取得更好的性能，但是如果发生机器掉电，异常宕机等情况，消息还未及时刷入磁盘，就会出现丢失消息的情况。</p>
+<p>若想保证 Broker 端不丢消息，保证消息的可靠性，我们需要将消息保存机制修改为同步刷盘方式，即消息<strong>存储磁盘成功</strong>，才会返回响应。</p>
+<p>修改 Broker 端配置如下：</p>
+<figure class="highlight properties"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">## 默认情况为 ASYNC_FLUSH </span></span><br><span class="line"><span class="attr">flushDiskType</span> = <span class="string">SYNC_FLUSH</span></span><br></pre></td></tr></table></figure>
+
+<p>若 Broker 未在同步刷盘时间内（<strong>默认为 5s</strong>）完成刷盘，将会返回<code>SendStatus.FLUSH_DISK_TIMEOUT</code>状态给生产者。</p>
+<h3 id="集群部署"><a href="#集群部署" class="headerlink" title="集群部署"></a>集群部署</h3><p>为了保证可用性，Broker 通常采用一主（<strong>Master</strong>）多从（<strong>Slave</strong>）部署方式。为了保证消息不丢失，消息还需要复制到 Slave 节点。</p>
+<p>默认方式下，消息写入<strong>Master</strong>成功，就可以返回确认响应给生产者，接着消息将会异步复制到<strong>Slave</strong>节点。</p>
+<p>此时若 master 突然<strong>宕机且不可恢复</strong>，那么还未复制到<strong>Slave</strong>的消息将会丢失。</p>
+<p>为了进一步提高消息的可靠性，我们可以采用同步的复制方式，<strong>Master</strong> 节点将会同步等待<strong>Slave</strong>节点复制完成，才会返回确认响应。</p>
+<p>Broker master 节点 同步复制配置如下：</p>
+<figure class="highlight properties"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">## 默认为 ASYNC_MASTER </span></span><br><span class="line"><span class="attr">brokerRole</span>=<span class="string">SYNC_MASTER</span></span><br></pre></td></tr></table></figure>
+
+<p>如果 <strong>Slave</strong> 节点未在指定时间内同步返回响应，生产者将会收到<code>SendStatus.FLUSH_SLAVE_TIMEOUT</code>返回状态。</p>
+<p>结合生产阶段与存储阶段，若需要<strong>严格保证消息不丢失</strong>，broker 需要采用如下配置：</p>
+<figure class="highlight properties"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">## master 节点配置</span></span><br><span class="line"><span class="attr">flushDiskType</span> = <span class="string">SYNC_FLUSH</span></span><br><span class="line"><span class="attr">brokerRole</span>=<span class="string">SYNC_MASTER</span></span><br><span class="line"></span><br><span class="line"><span class="comment">## slave 节点配置</span></span><br><span class="line"><span class="attr">brokerRole</span>=<span class="string">slave</span></span><br><span class="line"><span class="attr">flushDiskType</span> = <span class="string">SYNC_FLUSH</span></span><br></pre></td></tr></table></figure>
+
+<p>同时这个过程我们还需要生产者配合，判断返回状态是否是<code>SendStatus.SEND_OK</code>。若是其他状态，就需要考虑补偿重试。</p>
+<p>虽然上述配置提高消息的高可靠性，但是会<strong>降低性能</strong>，生产实践中需要综合选择。</p>
+<h2 id="三、消费阶段"><a href="#三、消费阶段" class="headerlink" title="三、消费阶段"></a>三、消费阶段</h2><p>消费者从Broker拉取消息，然后执行相应的业务逻辑。一旦执行成功，将会返回<code>ConsumeConcurrentlyStatus.CONSUME_SUCCESS</code>状态给 Broker。</p>
+<p>如果Broker未收到消费确认响应或收到其他状态，消费者下次还会再次拉取到该条消息，进行重试。这样的方式有效避免了消费者消费过程发生异常，或者消息在网络传输中丢失的情况。</p>
+<p>消息消费的代码如下：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 实例化消费者</span></span><br><span class="line">DefaultMQPushConsumer consumer = <span class="keyword">new</span> DefaultMQPushConsumer(<span class="string">"test_consumer"</span>);</span><br><span class="line"></span><br><span class="line"><span class="comment">// 设置NameServer的地址</span></span><br><span class="line">consumer.setNamesrvAddr(<span class="string">"namesrvAddr"</span>);</span><br><span class="line"></span><br><span class="line"><span class="comment">// 订阅一个或者多个Topic，以及Tag来过滤需要消费的消息</span></span><br><span class="line">consumer.subscribe(<span class="string">"test_topic"</span>, <span class="string">"*"</span>);</span><br><span class="line"><span class="comment">// 注册回调实现类来处理从broker拉取回来的消息</span></span><br><span class="line">consumer.registerMessageListener(<span class="keyword">new</span> MessageListenerConcurrently() &#123;</span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> ConsumeConcurrentlyStatus <span class="title">consumeMessage</span><span class="params">(List&lt;MessageExt&gt; msgs, ConsumeConcurrentlyContext context)</span> </span>&#123;</span><br><span class="line">        <span class="comment">// 执行业务逻辑</span></span><br><span class="line">        <span class="comment">// 标记该消息已经被成功消费</span></span><br><span class="line">        <span class="keyword">return</span> ConsumeConcurrentlyStatus.CONSUME_SUCCESS;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;);</span><br><span class="line"><span class="comment">// 启动消费者实例</span></span><br><span class="line">consumer.start();</span><br></pre></td></tr></table></figure>
+
+<p>以上消费消息过程的，我们需要<strong>注意返回消息状态</strong>。只有当业务逻辑真正执行成功，我们才能返回<br><code>ConsumeConcurrentlyStatus.CONSUME_SUCCESS</code>。否则我们需要返回<code>ConsumeConcurrentlyStatus.RECONSUME_LATER</code>，稍后再重试。</p>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>本文通过一条消息生命周期的三个阶段来分析消息可能丢失的原因，并且跟根据原因做出一系列措施，理论上可以有效防止RocketMQ的消息丢失。</p>
+<h2 id="参考链接"><a href="#参考链接" class="headerlink" title="参考链接"></a>参考链接</h2><p><a href="https://www.toutiao.com/i6807935652416455171/?tt_from=weixin&utm_campaign=client_share&wxshare_count=1&timestamp=1590497337&app=news_article&utm_source=weixin&utm_medium=toutiao_ios&req_id=20200526204856010014047021117326D4&group_id=6807935652416455171" target="_blank" rel="noopener">面试官再问我如何保证 RocketMQ 不丢失消息,这回我笑了！</a></p>
+</section>
+    <!-- Tags START -->
+    
+      <div class="tags">
+        <span>Tags:</span>
+        
+  <a href="/tags#消息队列" >
+    <span class="tag-code">消息队列</span>
+  </a>
+
+      </div>
+    
+    <!-- Tags END -->
+    <!-- NAV START -->
+    
+  <div class="nav-container">
+    <!-- reverse left and right to put prev and next in a more logic postition -->
+    
+      <a class="nav-left" href="/2020/05/26/RocketMQ2-RocketMQTransactionNews/">
+        <span class="nav-arrow">← </span>
+        
+          RocketMQ2-RocketMQ实现分布式事务
+        
+      </a>
+    
+    
+  </div>
+
+    <!-- NAV END -->
+    <!-- 打赏 START -->
+    
+      <div class="money-like">
+        <div class="reward-btn">
+          赏
+          <span class="money-code">
+            <span class="alipay-code">
+              <div class="code-image"></div>
+              <b>使用支付宝打赏</b>
+            </span>
+            <span class="wechat-code">
+              <div class="code-image"></div>
+              <b>使用微信打赏</b>
+            </span>
+          </span>
+        </div>
+        <p class="notice">若你觉得我的文章对你有帮助，欢迎点击上方按钮对我打赏</p>
+      </div>
+    
+    <!-- 打赏 END -->
+    <!-- 二维码 START -->
+    
+      <div class="qrcode">
+        <canvas id="share-qrcode"></canvas>
+        <p class="notice">扫描二维码，分享此文章</p>
+      </div>
+    
+    <!-- 二维码 END -->
+    
+      <!-- Gitalk START -->
+      <div id="gitalk-container"></div>
+      <!-- Gitalk END -->
+    
+  </article>
+  <!-- Article END -->
+  <!-- Catalog START -->
+  
+    <aside class="catalog-container">
+  <div class="toc-main">
+    <strong class="toc-title">目录</strong>
+    
+      <ol class="toc-nav"><li class="toc-nav-item toc-nav-level-2"><a class="toc-nav-link" href="#消息的发送流程"><span class="toc-nav-text">消息的发送流程</span></a></li><li class="toc-nav-item toc-nav-level-2"><a class="toc-nav-link" href="#一、生产阶段"><span class="toc-nav-text">一、生产阶段</span></a></li><li class="toc-nav-item toc-nav-level-2"><a class="toc-nav-link" href="#插播知识点"><span class="toc-nav-text">插播知识点</span></a><ol class="toc-nav-child"><li class="toc-nav-item toc-nav-level-3"><a class="toc-nav-link" href="#同步刷盘和异步刷盘"><span class="toc-nav-text">同步刷盘和异步刷盘</span></a></li><li class="toc-nav-item toc-nav-level-3"><a class="toc-nav-link" href="#同步复制和异步复制"><span class="toc-nav-text">同步复制和异步复制</span></a></li></ol></li><li class="toc-nav-item toc-nav-level-2"><a class="toc-nav-link" href="#二、Broker存储阶段"><span class="toc-nav-text">二、Broker存储阶段</span></a><ol class="toc-nav-child"><li class="toc-nav-item toc-nav-level-3"><a class="toc-nav-link" href="#集群部署"><span class="toc-nav-text">集群部署</span></a></li></ol></li><li class="toc-nav-item toc-nav-level-2"><a class="toc-nav-link" href="#三、消费阶段"><span class="toc-nav-text">三、消费阶段</span></a></li><li class="toc-nav-item toc-nav-level-2"><a class="toc-nav-link" href="#总结"><span class="toc-nav-text">总结</span></a></li><li class="toc-nav-item toc-nav-level-2"><a class="toc-nav-link" href="#参考链接"><span class="toc-nav-text">参考链接</span></a></li></ol>
+    
+  </div>
+</aside>
+  
+  <!-- Catalog END -->
+</main>
+
+<script>
+  (function () {
+    var url = 'http://zmoyi.com/2020/05/27/RocketMQ3-RocketMQMSGDontLost/';
+    var banner = ''
+    if (banner !== '' && banner !== 'undefined' && banner !== 'null') {
+      $('#article-banner').css({
+        'background-image': 'url(' + banner + ')'
+      })
+    } else {
+      $('#article-banner').geopattern(url)
+    }
+    $('.header').removeClass('fixed-header')
+
+    // error image
+    $(".markdown-content img").on('error', function() {
+      $(this).attr('src', 'http://file.muyutech.com/error-img.png')
+      $(this).css({
+        'cursor': 'default'
+      })
+    })
+
+    // zoom image
+    $(".markdown-content img").on('click', function() {
+      var src = $(this).attr('src')
+      if (src !== 'http://file.muyutech.com/error-img.png') {
+        var imageW = $(this).width()
+        var imageH = $(this).height()
+
+        var zoom = ($(window).width() * 0.95 / imageW).toFixed(2)
+        zoom = zoom < 1 ? 1 : zoom
+        zoom = zoom > 2 ? 2 : zoom
+        var transY = (($(window).height() - imageH) / 2).toFixed(2)
+
+        $('body').append('<div class="image-view-wrap"><div class="image-view-inner"><img src="'+ src +'" /></div></div>')
+        $('.image-view-wrap').addClass('wrap-active')
+        $('.image-view-wrap img').css({
+          'width': `${imageW}`,
+          'transform': `translate3d(0, ${transY}px, 0) scale3d(${zoom}, ${zoom}, 1)`
+        })
+        $('html').css('overflow', 'hidden')
+
+        $('.image-view-wrap').on('click', function() {
+          $(this).remove()
+          $('html').attr('style', '')
+        })
+      }
+    })
+  })();
+</script>
+
+
+  <script>
+    var qr = new QRious({
+      element: document.getElementById('share-qrcode'),
+      value: document.location.href
+    });
+  </script>
+
+
+
+
+
+  <script type="text/javascript">
+    var gitalk = new Gitalk({
+      clientID: '595f268d984e0123456f',
+      clientSecret: 'e4c1799bc7a82448653f758927992c6217beb7cb',
+      id: window.location.pathname,
+      repo: 'fanezhao.github.io',
+      owner: 'fanezhao',
+      admin: 'fanezhao'
+    })
+    gitalk.render('gitalk-container')
+  </script>
+
+
+
+
+    <div class="scroll-top">
+  <span class="arrow-icon"></span>
+</div>
+    <footer class="app-footer">
+  <p class="copyright">
+    &copy;2020 <a href="https://github.com/fanezhao" target="_blank" rel="noopener">Fane</a>
+    | PV: <span id="busuanzi_value_site_pv"></span>
+    | UV: <span id="busuanzi_value_site_uv"></span>
+    | PPV: <span id="busuanzi_value_page_pv"></span>
+    <br>
+  </p>
+  <div style="width:350px;margin:0 auto; padding:0px 0; overflow: hidden;">
+    <a href="http://www.beian.miit.gov.cn/" target="_blank" rel="noopener" style="display:inline-block;text-decoration: none; height:20px;line-height:20px;float: left;">
+        <p style="float:left;height:20px;line-height:20px;margin: 0px 0px 0px 5px; color:#939393;">浙ICP备20012854号</p >
+    </a >
+    <a href="http://www.beian.gov.cn/portal/registerSystemInfo?recordcode=33011002014629" target="_blank" rel="noopener" style="display:inline-block; text-decoration: none; height:20px; line-height:20px; float:right;">
+        <img src="http://cdn.zmoyi.com/static/images/%E5%A4%87%E6%A1%88%E5%9B%BE%E6%A0%87.png" style="float:left;" alt="">
+        <p style="float:left;height:20px;line-height:20px;margin: 0px 0px 0px 5px; color:#939393;">浙公网安备 33011002014629号</p >
+    </a >
+  </div>
+</footer>
+
+<script>
+  function async(u, c) {
+    var d = document, t = 'script',
+      o = d.createElement(t),
+      s = d.getElementsByTagName(t)[0];
+    o.src = u;
+    if (c) { o.addEventListener('load', function (e) { c(null, e); }, false); }
+    s.parentNode.insertBefore(o, s);
+  }
+</script>
+<script>
+  async("//cdnjs.cloudflare.com/ajax/libs/fastclick/1.0.6/fastclick.min.js", function(){
+    FastClick.attach(document.body);
+  })
+</script>
+
+<script>
+  var hasLine = 'true';
+  async("//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/highlight.min.js", function(){
+    $('figure pre').each(function(i, block) {
+      var figure = $(this).parents('figure');
+      if (hasLine === 'false') {
+        figure.find('.gutter').hide();
+      }
+      var lang = figure.attr('class').split(' ')[1] || 'code';
+      var codeHtml = $(this).html();
+      var codeTag = document.createElement('code');
+      codeTag.className = lang;
+      codeTag.innerHTML = codeHtml;
+      $(this).attr('class', '').empty().html(codeTag);
+      figure.attr('data-lang', lang.toUpperCase());
+      hljs.highlightBlock(block);
+    });
+  })
+</script>
+<!-- Baidu Tongji -->
+
+<script>
+    var _baId = '1da5032819b12da8d4c1fb82c6f21ffa';
+    // Originial
+    var _hmt = _hmt || [];
+    (function() {
+      var hm = document.createElement("script");
+      hm.src = "//hm.baidu.com/hm.js?" + _baId;
+      var s = document.getElementsByTagName("script")[0];
+      s.parentNode.insertBefore(hm, s);
+    })();
+</script>
+
+<!-- busuanzi -->
+<script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+
+<script src="/js/script.js"></script>
+
+  </body>
+</html>

@@ -158,6 +158,35 @@
   
     <article class="article-card">
       <h2 class="article-head">
+        <a href="/2020/05/27/RocketMQ3-RocketMQMSGDontLost/">RocketMQ3-RocketMQ是如何保证不丢失消息的</a>
+      </h2>
+      <p class="article-date">2020年5月27日</p>
+      
+        
+  <a href="/tags#消息队列" >
+    <span class="tag-code">消息队列</span>
+  </a>
+
+      
+      <div class="article-summary">
+        
+          
+来聊聊如何保证 RocketMQ 不丢失消息的。
+
+消息的发送流程一条消息从生产到被消费，将会经历三个阶段：
+
+
+
+生产阶段：Producer 新建消息，然后通过网络将消息投递给 MQ Broker。
+存储阶段：消息将会存储在 Broker 端磁盘中。
+消息阶段： Consumer 将会从 ...
+        
+      </div>
+      <a class="more" href="/2020/05/27/RocketMQ3-RocketMQMSGDontLost/">Read more</a>
+    </article>
+  
+    <article class="article-card">
+      <h2 class="article-head">
         <a href="/2020/05/26/RocketMQ2-RocketMQTransactionNews/">RocketMQ2-RocketMQ实现分布式事务</a>
       </h2>
       <p class="article-date">2020年5月26日</p>
@@ -384,29 +413,6 @@ g0和m0运行时系统中的每个M都会拥有一个特殊的G，一般称为M�
         
       </div>
       <a class="more" href="/2020/04/24/GoConcurrent7-IPCSocket2/">Read more</a>
-    </article>
-  
-    <article class="article-card">
-      <h2 class="article-head">
-        <a href="/2020/04/24/GoConcurrent6-IPCSocket1/">Go并发编程（六）IPC之socket基础</a>
-      </h2>
-      <p class="article-date">2020年4月24日</p>
-      
-        
-  <a href="/tags#Go" >
-    <span class="tag-code">Go</span>
-  </a>
-
-      
-      <div class="article-summary">
-        
-          
-socket常译为套接字，也是一种IPC方法。但是与其它IPC方法不同的是，它可以通过网络连接让多个进程之间建立通信并相互传递数据，这使得通信双方是否在同一台计算机上变得无关紧要。
-
-socket的基本特性大多数操作系统都包含了socket接口的实现，主流以及新兴的编程语言也都支持sock ...
-        
-      </div>
-      <a class="more" href="/2020/04/24/GoConcurrent6-IPCSocket1/">Read more</a>
     </article>
   
 
