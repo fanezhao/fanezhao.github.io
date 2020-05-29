@@ -10,7 +10,7 @@
   
   <title>
     
-      为什么重写equals()方法的时候一定要重写hashCode()方法？ | Fane&#39;Blog
+      重写equals()方法的时候一定要重写hashCode()方法吗？ | Fane&#39;Blog
     
   </title>
   <link href="//cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css" rel="stylesheet">
@@ -155,7 +155,7 @@
 </header>
 
     <div id="article-banner">
-  <h2>为什么重写equals()方法的时候一定要重写hashCode()方法？</h2>
+  <h2>重写equals()方法的时候一定要重写hashCode()方法吗？</h2>
   <p class="post-date">2020-05-29</p>
   <div class="arrow-down">
     <a href="javascript:;"></a>
@@ -164,15 +164,12 @@
 <main class="app-body flex-box">
   <!-- Article START -->
   <article class="post-article">
-    <section class="markdown-content"><h1 id="为什么重写equals-方法的时候一定要重写hashCode-方法？"><a href="#为什么重写equals-方法的时候一定要重写hashCode-方法？" class="headerlink" title="为什么重写equals()方法的时候一定要重写hashCode()方法？"></a>为什么重写equals()方法的时候一定要重写hashCode()方法？</h1><p>当我们用 HashMap 存入自定义的类时，如果不重写这个自定义类的 equals 和 hashCode 方法，得到的结果会和我们预期的不一样。</p>
+    <section class="markdown-content"><p>我们知道，当我们用<code>HashMap</code>存入自定义的类时，如果不重写这个自定义类的<code>equals</code>和<code>hashCode</code>方法，得到的结果会和我们预期的不一样。</p>
 <p>下面以一个Person类为基础，观察其在：</p>
 <ul>
-<li><p>不重写<code>equals</code>和<code>hashCode</code>方法</p>
-</li>
-<li><p>重写<code>equals</code>但不重写<code>hashCode</code>方法</p>
-</li>
-<li><p>重写<code>equals</code>和<code>hashCode</code>方法</p>
-</li>
+<li>不重写<code>equals</code>和<code>hashCode</code>方法</li>
+<li>重写<code>equals</code>但不重写<code>hashCode</code>方法</li>
+<li>重写<code>equals</code>和<code>hashCode</code>方法</li>
 </ul>
 <p>三种情况下的表现。</p>
 <p>Person定义如下：</p>
@@ -272,7 +269,7 @@
   <div class="toc-main">
     <strong class="toc-title">目录</strong>
     
-      <ol class="toc-nav"><li class="toc-nav-item toc-nav-level-1"><a class="toc-nav-link" href="#为什么重写equals-方法的时候一定要重写hashCode-方法？"><span class="toc-nav-text">为什么重写equals()方法的时候一定要重写hashCode()方法？</span></a><ol class="toc-nav-child"><li class="toc-nav-item toc-nav-level-3"><a class="toc-nav-link" href="#不重写equals和hashCode方法"><span class="toc-nav-text">不重写equals和hashCode方法</span></a></li><li class="toc-nav-item toc-nav-level-3"><a class="toc-nav-link" href="#重写equals但不重写hashCode方法"><span class="toc-nav-text">重写equals但不重写hashCode方法</span></a></li><li class="toc-nav-item toc-nav-level-3"><a class="toc-nav-link" href="#重写equals和hashCode方法"><span class="toc-nav-text">重写equals和hashCode方法</span></a></li></ol></li><li class="toc-nav-item toc-nav-level-2"><a class="toc-nav-link" href="#总结"><span class="toc-nav-text">总结</span></a></li></ol></li></ol>
+      <ol class="toc-nav"><li class="toc-nav-item toc-nav-level-3"><a class="toc-nav-link" href="#不重写equals和hashCode方法"><span class="toc-nav-text">不重写equals和hashCode方法</span></a></li><li class="toc-nav-item toc-nav-level-3"><a class="toc-nav-link" href="#重写equals但不重写hashCode方法"><span class="toc-nav-text">重写equals但不重写hashCode方法</span></a></li><li class="toc-nav-item toc-nav-level-3"><a class="toc-nav-link" href="#重写equals和hashCode方法"><span class="toc-nav-text">重写equals和hashCode方法</span></a></li></ol></li><li class="toc-nav-item toc-nav-level-2"><a class="toc-nav-link" href="#总结"><span class="toc-nav-text">总结</span></a>
     
   </div>
 </aside>
