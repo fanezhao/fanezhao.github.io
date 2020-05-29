@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html>
+  <head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0" name="viewport">
+  <meta name="description" content="本博客于 2020 年建站，记录了我在工作过程中学到的技术、运营及产品等知识，并以原创文章的形式分享给大家。未来仍然将坚持不懈的分享技术知识、工作经历等原创内容。 希望看到本博客的前辈多指点扶正、同行们能一起共同学习与进步、正在学习的小伙伴能通过本博客学到对自己有用的知识。">
+  <meta name="keyword" content="ZMOYI, 原创博客, Java, Golang, Linux, 全栈, 后端开发, 前端开发">
+  
+    <link rel="shortcut icon" type="image/ico" href="http://cdn.zmoyi.com/static/images/ico.png"/>
+  
+  <title>
+    
+      为什么重写equals()方法的时候一定要重写hashCode()方法？ | Fane&#39;Blog
+    
+  </title>
+  <link href="//cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css" rel="stylesheet">
+  <link href="//cdnjs.cloudflare.com/ajax/libs/nprogress/0.2.0/nprogress.min.css" rel="stylesheet">
+  <link href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/tomorrow.min.css" rel="stylesheet">
+  
+<link rel="stylesheet" href="/css/style.css">
+
+  
+  
+    
+<link rel="stylesheet" href="https://unpkg.com/gitalk/dist/gitalk.css">
+
+  
+  <script src="//cdnjs.cloudflare.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+  <script src="//cdnjs.cloudflare.com/ajax/libs/geopattern/1.2.3/js/geopattern.min.js"></script>
+  <script src="//cdnjs.cloudflare.com/ajax/libs/nprogress/0.2.0/nprogress.min.js"></script>
+  
+    
+<script src="/js/qrious.js"></script>
+
+  
+  
+  
+    
+<script src="https://unpkg.com/gitalk/dist/gitalk.min.js"></script>
+
+  
+  
+  
+    <!-- MathJax support START -->
+    <script type="text/x-mathjax-config">
+      MathJax.Hub.Config({
+        tex2jax: {
+          inlineMath: [ ['$','$'], ["\\(","\\)"]  ],
+          processEscapes: true,
+          skipTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
+        }
+      });
+    </script>
+
+    <script type="text/x-mathjax-config">
+      MathJax.Hub.Queue(function() {
+        var all = MathJax.Hub.getAllJax(), i;
+        for (i=0; i < all.length; i += 1) {
+          all[i].SourceElement().parentNode.className += ' has-jax';
+        }
+      });
+    </script>
+    <script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <!-- MathJax support END -->
+  
+
+
+  
+<meta name="generator" content="Hexo 4.2.0"></head>
+<div class="wechat-share">
+  <img src="http://cdn.zmoyi.com/static/images/logo.png" />
+</div>
+
+  <body>
+    <header class="header fixed-header">
+  <div class="header-container">
+    <a class="home-link" href="/">
+      <div class="logo"></div>
+      <span>Fane'Blog</span>
+    </a>
+    <ul class="right-list">
+      
+        <li class="list-item">
+          
+            <a href="/" class="item-link">Home</a>
+          
+        </li>
+      
+        <li class="list-item">
+          
+            <a href="/tags/" class="item-link">Tags</a>
+          
+        </li>
+      
+        <li class="list-item">
+          
+            <a href="/archives/" class="item-link">Archives</a>
+          
+        </li>
+      
+        <li class="list-item">
+          
+            <a href="/project/" class="item-link">Projects</a>
+          
+        </li>
+      
+        <li class="list-item">
+          
+            <a href="/about/" class="item-link">About</a>
+          
+        </li>
+      
+    </ul>
+    <div class="menu">
+      <span class="icon-bar"></span>
+      <span class="icon-bar"></span>
+      <span class="icon-bar"></span>
+    </div>
+    <div class="menu-mask">
+      <ul class="menu-list">
+        
+          <li class="menu-item">
+            
+              <a href="/" class="menu-link">Home</a>
+            
+          </li>
+        
+          <li class="menu-item">
+            
+              <a href="/tags/" class="menu-link">Tags</a>
+            
+          </li>
+        
+          <li class="menu-item">
+            
+              <a href="/archives/" class="menu-link">Archives</a>
+            
+          </li>
+        
+          <li class="menu-item">
+            
+              <a href="/project/" class="menu-link">Projects</a>
+            
+          </li>
+        
+          <li class="menu-item">
+            
+              <a href="/about/" class="menu-link">About</a>
+            
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+</header>
+
+    <div id="article-banner">
+  <h2>为什么重写equals()方法的时候一定要重写hashCode()方法？</h2>
+  <p class="post-date">2020-05-29</p>
+  <div class="arrow-down">
+    <a href="javascript:;"></a>
+  </div>
+</div>
+<main class="app-body flex-box">
+  <!-- Article START -->
+  <article class="post-article">
+    <section class="markdown-content"><h1 id="为什么重写equals-方法的时候一定要重写hashCode-方法？"><a href="#为什么重写equals-方法的时候一定要重写hashCode-方法？" class="headerlink" title="为什么重写equals()方法的时候一定要重写hashCode()方法？"></a>为什么重写equals()方法的时候一定要重写hashCode()方法？</h1><p>当我们用 HashMap 存入自定义的类时，如果不重写这个自定义类的 equals 和 hashCode 方法，得到的结果会和我们预期的不一样。</p>
+<p>下面以一个Person类为基础，观察其在：</p>
+<ul>
+<li><p>不重写<code>equals</code>和<code>hashCode</code>方法</p>
+</li>
+<li><p>重写<code>equals</code>但不重写<code>hashCode</code>方法</p>
+</li>
+<li><p>重写<code>equals</code>和<code>hashCode</code>方法</p>
+</li>
+</ul>
+<p>三种情况下的表现。</p>
+<p>Person定义如下：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">Person</span> </span>&#123;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 身份证号</span></span><br><span class="line">    <span class="keyword">private</span> String id;</span><br><span class="line">    <span class="comment">// 名字</span></span><br><span class="line">    <span class="keyword">private</span> String name;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// getter...</span></span><br><span class="line">    <span class="comment">// setter...</span></span><br><span class="line"></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h3 id="不重写equals和hashCode方法"><a href="#不重写equals和hashCode方法" class="headerlink" title="不重写equals和hashCode方法"></a>不重写equals和hashCode方法</h3><p>测试代码：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title">main</span><span class="params">(String[] args)</span> </span>&#123;</span><br><span class="line">    Person p1 = <span class="keyword">new</span> Person();</span><br><span class="line">    p1.setId(<span class="string">"123456"</span>);</span><br><span class="line">    p1.setName(<span class="string">"zhangsan"</span>);</span><br><span class="line"></span><br><span class="line">    Person p2 = <span class="keyword">new</span> Person();</span><br><span class="line">    p2.setId(<span class="string">"123456"</span>);</span><br><span class="line">    p2.setName(<span class="string">"lisi"</span>);</span><br><span class="line"></span><br><span class="line">    System.out.println(p1.equals(p2));</span><br><span class="line">    System.out.println(p1.hashCode());</span><br><span class="line">    System.out.println(p2.hashCode());</span><br><span class="line"></span><br><span class="line">    HashMap&lt;Person, String&gt; map1 = <span class="keyword">new</span> HashMap&lt;&gt;();</span><br><span class="line">    map1.put(p1, <span class="string">"哈哈哈"</span>);</span><br><span class="line">    map1.put(p2, <span class="string">"呵呵呵"</span>);</span><br><span class="line">    System.out.println(map1.size());</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>输出结果：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">false</span><br><span class="line">1627674070</span><br><span class="line">1360875712</span><br><span class="line">2</span><br></pre></td></tr></table></figure>
+
+<p>很明显可以看到，同一个类型不重写<code>equals</code>和<code>hashCode</code>方法，两个实例的私有属性值也不一样，两个实例肯定不同。所以其<code>hash</code>值肯定也不一样，放到<code>HashMap</code>中当然也会被认为是两个不同的k，所以<code>map1</code>的大小为2。这个不难理解吧。</p>
+<h3 id="重写equals但不重写hashCode方法"><a href="#重写equals但不重写hashCode方法" class="headerlink" title="重写equals但不重写hashCode方法"></a>重写equals但不重写hashCode方法</h3><p><code>equals</code>方法重写如下：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">@Override</span></span><br><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">boolean</span> <span class="title">equals</span><span class="params">(Object obj)</span> </span>&#123;</span><br><span class="line">    <span class="comment">// 以身份证号为准</span></span><br><span class="line">    <span class="keyword">return</span> <span class="keyword">this</span>.id.equals(((Person) obj).getId());</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>当两个人身份证号一样的时候，我们就认为其是同一个人。即两个实例相同。</p>
+<p>同样的测试代码下输出结果：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">true</span></span><br><span class="line"><span class="number">1627674070</span></span><br><span class="line"><span class="number">1360875712</span></span><br><span class="line"><span class="number">2</span></span><br></pre></td></tr></table></figure>
+
+<p>可以看到，重写了<code>equals</code>方法之后，由于我们是以<code>id</code>为基准的，所以两个实例的身份证号只要一样，我们就认为他们是同一个人，也就是两个实例相同。但是两个实例的<code>hash</code>值却不同，又因为<code>HashMap</code>是以k的的<code>hash</code>值进行比较的，所以<code>map1</code>的大小仍然是2。</p>
+<h3 id="重写equals和hashCode方法"><a href="#重写equals和hashCode方法" class="headerlink" title="重写equals和hashCode方法"></a>重写equals和hashCode方法</h3><p><code>hashCode</code>方法重写如下：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">@Override</span></span><br><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">int</span> <span class="title">hashCode</span><span class="params">()</span> </span>&#123;</span><br><span class="line">    <span class="comment">// 取身份证号的hash值</span></span><br><span class="line">    <span class="keyword">return</span> getId().hashCode();</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>输出结果：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">true</span><br><span class="line">1450575459</span><br><span class="line">1450575459</span><br><span class="line">1</span><br></pre></td></tr></table></figure>
+
+<p>可以看到，两个实例就算名字不相等，只要其身份证号一样，那么我们就可以认为他俩是同一个人；由于其<code>hash</code>值（取身份证号的<code>hash值</code>）也相等，<code>HashMap</code>也认为其同一个实例，尽管其名字不一样。</p>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>当两个方法都不重写的时候，两个实例的身份证号一样，但名字不一样，会被认为不是同一个人；当只重写<code>equals</code>方法的时候，只要两个实例的身份证号一样，我们就单方面认为其是同一个人，但是，以<code>hash</code>表为底层实现的一类容器却不认为他们是同一个人；只有两个方法都经过重写的时候，只要保证其<code>hash</code>值相同，就算其它属性不相同，这类容器也还会认为他们是一个人。</p>
+<p>所以，重写equals()方法的时候一定要重写hashCode()方法吗？答案是<strong>不一定</strong>。我认为是分场景的，如果能确保这个类型不会被用在任何以其实例<code>hash</code>值作对比的情况下，就可以只重写<code>equals</code>方法。如果不能确保，还是老老实实重写吧！</p>
+</section>
+    <!-- Tags START -->
+    
+      <div class="tags">
+        <span>Tags:</span>
+        
+  <a href="/tags#Java" >
+    <span class="tag-code">Java</span>
+  </a>
+
+      </div>
+    
+    <!-- Tags END -->
+    <!-- NAV START -->
+    
+  <div class="nav-container">
+    <!-- reverse left and right to put prev and next in a more logic postition -->
+    
+      <a class="nav-left" href="/2020/05/27/RocketMQ3-RocketMQMSGDontLost/">
+        <span class="nav-arrow">← </span>
+        
+          RocketMQ3-RocketMQ是如何保证不丢失消息的
+        
+      </a>
+    
+    
+  </div>
+
+    <!-- NAV END -->
+    <!-- 打赏 START -->
+    
+      <div class="money-like">
+        <div class="reward-btn">
+          赏
+          <span class="money-code">
+            <span class="alipay-code">
+              <div class="code-image"></div>
+              <b>使用支付宝打赏</b>
+            </span>
+            <span class="wechat-code">
+              <div class="code-image"></div>
+              <b>使用微信打赏</b>
+            </span>
+          </span>
+        </div>
+        <p class="notice">若你觉得我的文章对你有帮助，欢迎点击上方按钮对我打赏</p>
+      </div>
+    
+    <!-- 打赏 END -->
+    <!-- 二维码 START -->
+    
+      <div class="qrcode">
+        <canvas id="share-qrcode"></canvas>
+        <p class="notice">扫描二维码，分享此文章</p>
+      </div>
+    
+    <!-- 二维码 END -->
+    
+      <!-- Gitalk START -->
+      <div id="gitalk-container"></div>
+      <!-- Gitalk END -->
+    
+  </article>
+  <!-- Article END -->
+  <!-- Catalog START -->
+  
+    <aside class="catalog-container">
+  <div class="toc-main">
+    <strong class="toc-title">目录</strong>
+    
+      <ol class="toc-nav"><li class="toc-nav-item toc-nav-level-1"><a class="toc-nav-link" href="#为什么重写equals-方法的时候一定要重写hashCode-方法？"><span class="toc-nav-text">为什么重写equals()方法的时候一定要重写hashCode()方法？</span></a><ol class="toc-nav-child"><li class="toc-nav-item toc-nav-level-3"><a class="toc-nav-link" href="#不重写equals和hashCode方法"><span class="toc-nav-text">不重写equals和hashCode方法</span></a></li><li class="toc-nav-item toc-nav-level-3"><a class="toc-nav-link" href="#重写equals但不重写hashCode方法"><span class="toc-nav-text">重写equals但不重写hashCode方法</span></a></li><li class="toc-nav-item toc-nav-level-3"><a class="toc-nav-link" href="#重写equals和hashCode方法"><span class="toc-nav-text">重写equals和hashCode方法</span></a></li></ol></li><li class="toc-nav-item toc-nav-level-2"><a class="toc-nav-link" href="#总结"><span class="toc-nav-text">总结</span></a></li></ol></li></ol>
+    
+  </div>
+</aside>
+  
+  <!-- Catalog END -->
+</main>
+
+<script>
+  (function () {
+    var url = 'http://zmoyi.com/2020/05/29/Java-equalsAndHashcode/';
+    var banner = ''
+    if (banner !== '' && banner !== 'undefined' && banner !== 'null') {
+      $('#article-banner').css({
+        'background-image': 'url(' + banner + ')'
+      })
+    } else {
+      $('#article-banner').geopattern(url)
+    }
+    $('.header').removeClass('fixed-header')
+
+    // error image
+    $(".markdown-content img").on('error', function() {
+      $(this).attr('src', 'http://file.muyutech.com/error-img.png')
+      $(this).css({
+        'cursor': 'default'
+      })
+    })
+
+    // zoom image
+    $(".markdown-content img").on('click', function() {
+      var src = $(this).attr('src')
+      if (src !== 'http://file.muyutech.com/error-img.png') {
+        var imageW = $(this).width()
+        var imageH = $(this).height()
+
+        var zoom = ($(window).width() * 0.95 / imageW).toFixed(2)
+        zoom = zoom < 1 ? 1 : zoom
+        zoom = zoom > 2 ? 2 : zoom
+        var transY = (($(window).height() - imageH) / 2).toFixed(2)
+
+        $('body').append('<div class="image-view-wrap"><div class="image-view-inner"><img src="'+ src +'" /></div></div>')
+        $('.image-view-wrap').addClass('wrap-active')
+        $('.image-view-wrap img').css({
+          'width': `${imageW}`,
+          'transform': `translate3d(0, ${transY}px, 0) scale3d(${zoom}, ${zoom}, 1)`
+        })
+        $('html').css('overflow', 'hidden')
+
+        $('.image-view-wrap').on('click', function() {
+          $(this).remove()
+          $('html').attr('style', '')
+        })
+      }
+    })
+  })();
+</script>
+
+
+  <script>
+    var qr = new QRious({
+      element: document.getElementById('share-qrcode'),
+      value: document.location.href
+    });
+  </script>
+
+
+
+
+
+  <script type="text/javascript">
+    var gitalk = new Gitalk({
+      clientID: '595f268d984e0123456f',
+      clientSecret: 'e4c1799bc7a82448653f758927992c6217beb7cb',
+      id: window.location.pathname,
+      repo: 'fanezhao.github.io',
+      owner: 'fanezhao',
+      admin: 'fanezhao'
+    })
+    gitalk.render('gitalk-container')
+  </script>
+
+
+
+
+    <div class="scroll-top">
+  <span class="arrow-icon"></span>
+</div>
+    <footer class="app-footer">
+  <p class="copyright">
+    &copy;2020 <a href="https://github.com/fanezhao" target="_blank" rel="noopener">Fane</a>
+    | PV: <span id="busuanzi_value_site_pv"></span>
+    | UV: <span id="busuanzi_value_site_uv"></span>
+    | PPV: <span id="busuanzi_value_page_pv"></span>
+    <br>
+  </p>
+  <div style="width:350px;margin:0 auto; padding:0px 0; overflow: hidden;">
+    <a href="http://www.beian.miit.gov.cn/" target="_blank" rel="noopener" style="display:inline-block;text-decoration: none; height:20px;line-height:20px;float: left;">
+        <p style="float:left;height:20px;line-height:20px;margin: 0px 0px 0px 5px; color:#939393;">浙ICP备20012854号</p >
+    </a >
+    <a href="http://www.beian.gov.cn/portal/registerSystemInfo?recordcode=33011002014629" target="_blank" rel="noopener" style="display:inline-block; text-decoration: none; height:20px; line-height:20px; float:right;">
+        <img src="http://cdn.zmoyi.com/static/images/%E5%A4%87%E6%A1%88%E5%9B%BE%E6%A0%87.png" style="float:left;" alt="">
+        <p style="float:left;height:20px;line-height:20px;margin: 0px 0px 0px 5px; color:#939393;">浙公网安备 33011002014629号</p >
+    </a >
+  </div>
+</footer>
+
+<script>
+  function async(u, c) {
+    var d = document, t = 'script',
+      o = d.createElement(t),
+      s = d.getElementsByTagName(t)[0];
+    o.src = u;
+    if (c) { o.addEventListener('load', function (e) { c(null, e); }, false); }
+    s.parentNode.insertBefore(o, s);
+  }
+</script>
+<script>
+  async("//cdnjs.cloudflare.com/ajax/libs/fastclick/1.0.6/fastclick.min.js", function(){
+    FastClick.attach(document.body);
+  })
+</script>
+
+<script>
+  var hasLine = 'true';
+  async("//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/highlight.min.js", function(){
+    $('figure pre').each(function(i, block) {
+      var figure = $(this).parents('figure');
+      if (hasLine === 'false') {
+        figure.find('.gutter').hide();
+      }
+      var lang = figure.attr('class').split(' ')[1] || 'code';
+      var codeHtml = $(this).html();
+      var codeTag = document.createElement('code');
+      codeTag.className = lang;
+      codeTag.innerHTML = codeHtml;
+      $(this).attr('class', '').empty().html(codeTag);
+      figure.attr('data-lang', lang.toUpperCase());
+      hljs.highlightBlock(block);
+    });
+  })
+</script>
+<!-- Baidu Tongji -->
+
+<script>
+    var _baId = '1da5032819b12da8d4c1fb82c6f21ffa';
+    // Originial
+    var _hmt = _hmt || [];
+    (function() {
+      var hm = document.createElement("script");
+      hm.src = "//hm.baidu.com/hm.js?" + _baId;
+      var s = document.getElementsByTagName("script")[0];
+      s.parentNode.insertBefore(hm, s);
+    })();
+</script>
+
+<!-- busuanzi -->
+<script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+
+<script src="/js/script.js"></script>
+
+  </body>
+</html>
